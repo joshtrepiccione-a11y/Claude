@@ -9,10 +9,10 @@
       "Bash(git show:*)"
     ],
     "deny": [
-      "Edit(.env)",
-      "Read(.env)",
-      "Bash(git push --force:*)",
-      "Bash(git push -f:*)"
+      "Edit(**/.env)",
+      "Read(**/.env)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)"
     ]
   }
 }
