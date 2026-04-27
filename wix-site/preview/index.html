@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Roy Cooper for North Carolina — Preview</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Static visual approximation of the home page. Open this file
+     directly in a browser to preview the design that the Velo code in
+     wix-site/ should produce once the elements are wired up in the Wix
+     Editor. No external dependencies are required, but if Google Fonts
+     is reachable the headline will render in Barlow Condensed. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:       #0E2E5C;
+    --navy-deep:  #0A2147;
+    --carolina:   #A5C8E5;
+    --carolina-d: #9CC5E8;
+    --red:        #C8232B;
+    --red-hover:  #A91C23;
+    --paper:      #FFFFFF;
+    --ink:        #0A1628;
+    --rule:       #1B3E73;
+    --display:    "Barlow Condensed", "Helvetica Neue", Arial, sans-serif;
+    --body:       Inter, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--body);
+    color: var(--paper);
+    background: var(--navy-deep);
+    line-height: 1.45;
+  }
+  a { color: inherit; text-decoration: none; }
+
+  /* ── Utility donate bar ────────────────────────────── */
+  .utility {
+    background: var(--carolina);
+    color: var(--navy-deep);
+    text-align: center;
+    padding: 10px 16px;
+    font-family: var(--display);
+    font-weight: 800;
+    letter-spacing: .04em;
+    font-size: 14px;
+    text-transform: uppercase;
+  }
+  .utility a:hover { text-decoration: underline; }
+
+  /* ── Header ────────────────────────────────────────── */
+  header.nav {
+    background: var(--navy);
+    padding: 18px 32px;
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    align-items: center;
+    gap: 24px;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--display);
+    line-height: 1;
+  }
+  .logo-text {
+    color: white;
+    font-weight: 800;
+    font-size: 26px;
+    letter-spacing: .02em;
+  }
+  .logo-text .roy {
+    display: block;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    margin-bottom: -2px;
+  }
+  .logo-text .cooper { font-size: 32px; font-weight: 900; letter-spacing: .03em; }
+  .logo-text .for-nc {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    margin-top: 2px;
+    text-transform: uppercase;
+    border-top: 1.5px solid white;
+    padding-top: 4px;
+  }
+  .logo-state { width: 40px; height: 24px; }
+
+  nav.menu {
+    display: flex;
+    gap: 28px;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+  }
+  nav.menu a:hover { color: var(--carolina); }
+
+  .social {
+    display: flex; gap: 12px; align-items: center;
+  }
+  .social a {
+    width: 28px; height: 28px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .social svg { width: 22px; height: 22px; fill: white; }
+  .social a:hover svg { fill: var(--carolina); }
+
+  .donate-btn {
+    background: var(--red);
+    color: white;
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: 18px;
+    letter-spacing: .08em;
+    padding: 12px 26px;
+    border: 0;
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+  .donate-btn:hover { background: var(--red-hover); }
+
+  /* ── Hero ──────────────────────────────────────────── */
+  .hero {
+    position: relative;
+    background: var(--navy);
+    min-height: 720px;
+    overflow: hidden;
+  }
+  .hero-photo {
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 58%;
+    background-color: var(--navy-deep);
+  }
+  /* Inline flag-suggestion + silhouette placeholder. Once you upload the
+     real portrait in the Wix Editor, this background goes away. */
+  .hero-photo::before {
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      linear-gradient(90deg, rgba(14,46,92,.85), rgba(14,46,92,0) 35%, rgba(14,46,92,0) 65%, rgba(14,46,92,.7)),
+      repeating-linear-gradient(180deg,
+        rgba(255,255,255,.05) 0px, rgba(255,255,255,.05) 36px,
+        rgba(200,35,43,.18) 36px, rgba(200,35,43,.18) 72px);
+  }
+  .hero-photo::after {
+    content: "";
+    position: absolute;
+    right: 12%; bottom: 0;
+    width: 320px; height: 520px;
+    background:
+      radial-gradient(ellipse at 50% 18%, #d8c2a8 60px, rgba(216,194,168,0) 65px),
+      linear-gradient(180deg, transparent 0 22%, #16243a 22% 48%, #6da4d8 48% 56%, #16243a 56%);
+    border-radius: 60px 60px 0 0;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.04);
+  }
+  .placeholder-tag {
+    position: absolute;
+    right: 16px; bottom: 14px;
+    color: rgba(255,255,255,.55);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    z-index: 2;
+  }
+
+  .hero-inner {
+    position: relative;
+    z-index: 3;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 70px 48px 90px;
+  }
+  .hero h1 {
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: clamp(48px, 7vw, 92px);
+    line-height: .95;
+    letter-spacing: .005em;
+    margin: 0 0 36px;
+    max-width: 640px;
+    text-transform: uppercase;
+  }
+
+  /* ── Sign-up form ──────────────────────────────────── */
+  form.signup { max-width: 640px; display: grid; gap: 14px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  input, select {
+    background: #E9ECF0;
+    color: #45506b;
+    border: 0;
+    padding: 18px 20px;
+    font-family: var(--body);
+    font-size: 16px;
+    width: 100%;
+  }
+  input::placeholder { color: #6c7891; }
+  input:focus, select:focus { outline: 2px solid var(--carolina); }
+
+  .submit-btn {
+    background: var(--carolina-d);
+    color: white;
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: 26px;
+    letter-spacing: .08em;
+    padding: 22px;
+    border: 0;
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+  .submit-btn:hover { background: #87b8de; }
+
+  .terms {
+    color: rgba(255,255,255,.78);
+    font-style: italic;
+    font-size: 13px;
+    line-height: 1.55;
+    text-align: center;
+    margin-top: 8px;
+  }
+  .terms a { text-decoration: underline; }
+  .not-you {
+    color: rgba(255,255,255,.85);
+    font-size: 14px;
+    text-align: center;
+    margin-top: 6px;
+  }
+  .not-you a { text-decoration: underline; }
+
+  /* ── Footer ────────────────────────────────────────── */
+  footer {
+    background: var(--navy-deep);
+    color: rgba(255,255,255,.78);
+    text-align: center;
+    padding: 28px 16px;
+    font-size: 13px;
+    border-top: 1px solid var(--rule);
+  }
+
+  /* ── Responsive ────────────────────────────────────── */
+  @media (max-width: 900px) {
+    header.nav { grid-template-columns: auto 1fr auto; gap: 12px; padding: 14px 16px; }
+    nav.menu, .social { display: none; }
+    .hero-photo { width: 100%; opacity: .35; }
+    .hero-inner { padding: 48px 20px 60px; }
+    .field-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="utility">
+  <a href="#">Donate to become a founding member of our campaign now ▶</a>
+</div>
+
+<header class="nav">
+  <a class="logo" href="#">
+    <span class="logo-text">
+      <span class="roy">ROY</span>
+      <span class="cooper">COOPER</span>
+      <span class="for-nc">for north carolina</span>
+    </span>
+    <!-- Stylized NC outline -->
+    <svg class="logo-state" viewBox="0 0 80 32" aria-hidden="true">
+      <path d="M2 22 L8 14 L16 18 L24 10 L34 14 L44 8 L54 12 L62 6 L72 10 L78 16 L74 22 L62 24 L48 22 L34 26 L20 24 L10 26 Z"
+            fill="white" opacity=".95"/>
+    </svg>
+  </a>
+
+  <nav class="menu">
+    <a href="#">Home</a>
+    <a href="#">Meet Roy</a>
+    <a href="#">Get Involved</a>
+    <a href="#">Make Stuff Cost Less</a>
+    <a href="#">Store</a>
+  </nav>
+
+  <div class="social" aria-label="Social channels">
+    <a href="#" aria-label="Facebook"><svg viewBox="0 0 24 24"><path d="M13 22v-8h3l1-4h-4V7.5c0-1.1.3-1.9 2-1.9h2V2.1C16.6 2 15.5 2 14.4 2 11.7 2 10 3.7 10 6.7V10H7v4h3v8h3z"/></svg></a>
+    <a href="#" aria-label="Instagram"><svg viewBox="0 0 24 24"><path d="M12 2.2c3.2 0 3.6 0 4.85.07 3.25.15 4.77 1.7 4.92 4.92.06 1.25.07 1.62.07 4.81s0 3.56-.07 4.81c-.15 3.21-1.66 4.77-4.92 4.92-1.25.06-1.62.07-4.85.07s-3.6 0-4.85-.07c-3.26-.15-4.77-1.71-4.92-4.92C2.16 15.6 2.15 15.2 2.15 12s0-3.56.08-4.81C2.38 3.97 3.89 2.42 7.15 2.27 8.4 2.21 8.78 2.2 12 2.2zm0 1.8c-3.17 0-3.55.01-4.78.07C4.7 4.18 4 4.93 3.87 7.22 3.81 8.45 3.8 8.83 3.8 12s.01 3.55.07 4.78c.13 2.29.83 3.04 3.35 3.15 1.23.06 1.61.07 4.78.07s3.55-.01 4.78-.07c2.52-.11 3.22-.86 3.35-3.15.06-1.23.07-1.61.07-4.78s-.01-3.55-.07-4.78c-.13-2.29-.83-3.04-3.35-3.15C15.55 4.01 15.17 4 12 4zm0 3.2a4.8 4.8 0 1 1 0 9.6 4.8 4.8 0 0 1 0-9.6zm0 1.8a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm5.05-.95a1.13 1.13 0 1 1 0-2.26 1.13 1.13 0 0 1 0 2.26z"/></svg></a>
+    <a href="#" aria-label="X"><svg viewBox="0 0 24 24"><path d="M18.244 2H21.5l-7.4 8.46L23 22h-6.85l-5.36-6.95L4.5 22H1.24l7.95-9.08L1 2h7.02l4.85 6.43L18.24 2zm-2.4 18h1.83L7.27 4H5.32l10.52 16z"/></svg></a>
+    <a href="#" aria-label="Bluesky"><svg viewBox="0 0 24 24"><path d="M5.5 4.5C8 6 10.7 8.7 12 11.4 13.3 8.7 16 6 18.5 4.5 21 3 22 4.5 22 6c0 1.5-.9 8-1.4 9-1 1.7-2.7 1.9-4.7 1.6 3.6.6 4.4 2.6 2.4 4.6-3.7 3.6-5.3-1.3-5.7-2.5-.1-.2-.1-.3-.2-.3-.1 0-.1.1-.2.3-.4 1.2-2 6.1-5.7 2.5-2-2-1.2-4 2.4-4.6-2 .3-3.7.1-4.7-1.6C3.9 14 3 7.5 3 6c0-1.5 1-3 2.5-1.5z"/></svg></a>
+    <a href="#" aria-label="TikTok"><svg viewBox="0 0 24 24"><path d="M19.6 6.5c-1.7-.4-3-1.7-3.4-3.4V3h-3v12.5c0 1.6-1.3 2.9-2.9 2.9s-2.9-1.3-2.9-2.9 1.3-2.9 2.9-2.9c.3 0 .6.05.9.15v-3.05c-.3-.05-.6-.1-.9-.1-3.3 0-6 2.7-6 6s2.7 6 6 6 6-2.7 6-6V9.4c1.2.85 2.7 1.35 4.3 1.35V7.7c-.3 0-.7-.05-1-.2z"/></svg></a>
+    <a href="#" aria-label="Threads"><svg viewBox="0 0 24 24"><path d="M12.2 2C6.7 2 2 6.4 2 12s4.5 10 10.2 10c5.6 0 10.2-4.4 10.2-10S17.8 2 12.2 2zm3 14.6c-.7.7-1.7 1-3 1-1.5 0-2.7-.5-3.5-1.4-.7-.8-1.1-2-1.1-3.4 0-1.5.4-2.7 1.2-3.6.8-.9 2-1.4 3.5-1.4 1.7 0 3 .6 3.8 1.7l-1.2 1c-.5-.7-1.4-1.1-2.5-1.1-1 0-1.7.3-2.3.9-.5.6-.8 1.4-.8 2.5s.3 1.9.8 2.5c.5.6 1.3.9 2.3.9.7 0 1.3-.1 1.8-.4.4-.3.8-.7 1-1.2-.4-.1-.8-.2-1.3-.3-.4-.1-.9-.1-1.4-.1v-1.4h4.2v.7c0 1.4-.4 2.5-1.5 3.1z"/></svg></a>
+    <a href="#" aria-label="Flickr"><svg viewBox="0 0 24 24"><circle cx="7" cy="12" r="4"/><circle cx="17" cy="12" r="4"/></svg></a>
+  </div>
+
+  <button class="donate-btn" type="button">Donate</button>
+</header>
+
+<section class="hero">
+  <div class="hero-photo" aria-hidden="true"></div>
+  <div class="placeholder-tag">Replace with hero portrait</div>
+  <div class="hero-inner">
+    <h1>Fighting for<br>North Carolina</h1>
+    <form class="signup" onsubmit="event.preventDefault(); alert('Static preview — wire up via Velo Home.js + signup.web.js');">
+      <input type="text" placeholder="Name" required>
+      <div class="field-row">
+        <input type="email" placeholder="Email Address" required>
+        <input type="tel" placeholder="Mobile Phone">
+      </div>
+      <button class="submit-btn" type="submit">Join the Team</button>
+      <p class="terms">
+        SMS Terms: By providing your phone number and opting-in, you agree
+        to receive periodic automated text messages about donating and voter
+        contact. Msg Frequency varies. Msg &amp; Data rates may apply. Text
+        STOP to opt-out. For questions, please reach out to
+        contact@roycooper.com. Your mobile information will not be shared with
+        third parties/affiliates for marketing/promotional purposes. To learn
+        more about Cooper for North Carolina’s personal information handling
+        practices, review <a href="#">here</a>.
+      </p>
+      <p class="not-you">Not ___? <a href="#">Click here.</a></p>
+    </form>
+  </div>
+</section>
+
+<footer>
+  Paid for by Cooper for North Carolina. &nbsp;|&nbsp;
+  Static preview generated locally — not the live site.
+</footer>
+
+</body>
+</html>
