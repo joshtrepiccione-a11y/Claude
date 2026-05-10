@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>NJ-2 Precinct Map — 2024 General Election</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <header>
+      <h1>NJ Congressional District 2</h1>
+      <p class="sub">2024 General Election &middot; precinct-level</p>
+    </header>
+
+    <section class="panel" id="totals-panel">
+      <h2>District totals</h2>
+      <div id="totals"></div>
+      <div class="bar" id="totals-bar"><span class="d"></span><span class="r"></span><span class="o"></span></div>
+      <p class="muted" id="totals-meta"></p>
+    </section>
+
+    <section class="panel">
+      <h2>Vote mode</h2>
+      <div class="mode-group" id="mode-group">
+        <label><input type="radio" name="mode" value="total" checked /> <span>Total</span> <em class="tag real">real</em></label>
+        <label><input type="radio" name="mode" value="ed" /> <span>Election Day</span> <em class="tag modeled">modeled</em></label>
+        <label><input type="radio" name="mode" value="early" /> <span>Early Voting</span> <em class="tag modeled">modeled</em></label>
+        <label><input type="radio" name="mode" value="vbm" /> <span>Vote by Mail</span> <em class="tag modeled">modeled</em></label>
+      </div>
+      <p class="muted">
+        Total reflects certified 2024 presidential totals per precinct.
+        Mode-specific layers are <strong>modeled</strong> splits — the source
+        data does not publish Early/VBM/Election Day by precinct. See README
+        for methodology.
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2>Color by</h2>
+      <div class="mode-group">
+        <label><input type="radio" name="metric" value="margin" checked /> <span>Margin (D&minus;R)</span></label>
+        <label><input type="radio" name="metric" value="turnout" /> <span>Turnout</span></label>
+      </div>
+      <div id="legend"></div>
+    </section>
+
+    <section class="panel" id="hover-panel">
+      <h2>Precinct</h2>
+      <div id="hover"><p class="muted">Hover a precinct on the map.</p></div>
+    </section>
+
+    <section class="panel">
+      <h2>Share</h2>
+      <button id="share-btn" type="button">Copy shareable URL</button>
+      <p class="muted" id="share-status"></p>
+    </section>
+
+    <footer>
+      <p class="muted">
+        Boundaries &amp; presidential totals: 2024 NJ Precincts shapefile
+        compiled by @Twizzyu (via <a href="https://github.com/21MetcalfJ/2024Precincts" target="_blank" rel="noopener">21MetcalfJ/2024Precincts</a>).
+        District outline: <a href="https://github.com/unitedstates/districts" target="_blank" rel="noopener">unitedstates/districts</a>.
+        Filtered to NJ-2 (118th Cong.) using point-in-polygon against the official district shape.
+      </p>
+    </footer>
+  </aside>
+  <main id="map"></main>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="app.js"></script>
+</body>
+</html>
