@@ -74,6 +74,7 @@
         },
       }).addTo(map);
       map.fitBounds(layer.getBounds(), { padding: [20, 20] });
+      renderModeStats();
       recompute();
     })
     .catch(err => {
@@ -104,6 +105,12 @@
     };
   }
 
+  function precinctSource(feat) {
+    if (state.mode === "total") return "real";
+    const ms = feat.properties.mode_source || {};
+    return ms[state.mode] || "modeled";
+  }
+
   function showHover(feat) {
     const m = MODES[state.mode];
     const p = feat.properties;
@@ -112,16 +119,42 @@
     const margin = p[m.margin];
     const grand = p.pres_total;
     const modeShare = grand ? (total / grand * 100).toFixed(0) : 0;
+    const src = precinctSource(feat);
+    const srcBadge = `<em class="tag ${src}">${src}</em>`;
     document.getElementById("hover").innerHTML = `
       <h3>${escapeHtml(p.precinct)}</h3>
-      <p class="subline">${escapeHtml(p.county)} County &middot; ${m.label}${m.real ? "" : " (modeled)"}</p>
-      <div class="row"><span class="lbl">Harris (D)</span><span>${fmt(h)} &middot; ${total ? (h/total*100).toFixed(1) : "0"}%</span></div>
-      <div class="row"><span class="lbl">Trump (R)</span><span>${fmt(t)} &middot; ${total ? (t/total*100).toFixed(1) : "0"}%</span></div>
+      <p class="subline">${escapeHtml(p.county)} County · ${m.label} ${srcBadge}</p>
+      <div class="row"><span class="lbl">Harris (D)</span><span>${fmt(h)} · ${total ? (h/total*100).toFixed(1) : "0"}%</span></div>
+      <div class="row"><span class="lbl">Trump (R)</span><span>${fmt(t)} · ${total ? (t/total*100).toFixed(1) : "0"}%</span></div>
       <div class="row"><span class="lbl">Other</span><span>${fmt(o)}</span></div>
       <div class="row"><span class="lbl">Total (${m.label})</span><span>${fmt(total)}</span></div>
       <div class="row"><span class="lbl">Margin</span><span style="color:${margin>=0?'var(--dem)':'var(--rep)'}">${pct(margin)}</span></div>
       ${state.mode !== "total" ? `<div class="row"><span class="lbl">Share of precinct turnout</span><span>${modeShare}%</span></div>` : ""}
     `;
+  }
+
+  function renderModeStats() {
+    const n = geojson.features.length;
+    // Total mode is always real
+    const totalTag = document.querySelector('[data-mode-stat="total"]');
+    if (totalTag) { totalTag.textContent = "real"; totalTag.classList.add("real"); }
+    for (const k of ["ed","early","vbm"]) {
+      let real = 0;
+      for (const f of geojson.features) {
+        const ms = f.properties.mode_source || {};
+        if (ms[k] === "real") real++;
+      }
+      const tag = document.querySelector(`[data-mode-stat="${k}"]`);
+      if (!tag) continue;
+      const pctReal = Math.round(real / n * 100);
+      if (real === n) {
+        tag.textContent = "real"; tag.classList.add("real"); tag.classList.remove("modeled","partial");
+      } else if (real === 0) {
+        tag.textContent = "modeled"; tag.classList.add("modeled"); tag.classList.remove("real","partial");
+      } else {
+        tag.textContent = `${pctReal}% real`; tag.classList.add("partial"); tag.classList.remove("real","modeled");
+      }
+    }
   }
 
   function recompute() {
@@ -135,10 +168,11 @@
 
   function renderTotals() {
     const m = MODES[state.mode];
-    let h=0,t=0,o=0,tot=0,prec=0;
+    let h=0,t=0,o=0,tot=0,prec=0,realPrec=0;
     for (const f of geojson.features) {
       const p = f.properties;
       h += p[m.harris]; t += p[m.trump]; o += p[m.other]; tot += p[m.total]; prec++;
+      if (state.mode === "total" || (p.mode_source && p.mode_source[state.mode] === "real")) realPrec++;
     }
     const safeTot = Math.max(1, tot);
     const hp = h/safeTot*100, tp = t/safeTot*100, op = o/safeTot*100;
@@ -153,8 +187,13 @@
     bar.querySelector(".d").style.width = hp + "%";
     bar.querySelector(".r").style.width = tp + "%";
     bar.querySelector(".o").style.width = op + "%";
+    const provenance = state.mode === "total"
+      ? "real"
+      : realPrec === prec ? "real"
+      : realPrec === 0 ? "modeled"
+      : `${realPrec}/${prec} precincts real, rest modeled`;
     document.getElementById("totals-meta").textContent =
-      `${prec} precincts · ${m.label}` + (m.real ? "" : " (modeled split)");
+      `${prec} precincts · ${m.label} · ${provenance}`;
   }
 
   function renderLegend() {

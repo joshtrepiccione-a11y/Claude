@@ -26,16 +26,17 @@
     <section class="panel">
       <h2>Vote mode</h2>
       <div class="mode-group" id="mode-group">
-        <label><input type="radio" name="mode" value="total" checked /> <span>Total</span> <em class="tag real">real</em></label>
-        <label><input type="radio" name="mode" value="ed" /> <span>Election Day</span> <em class="tag modeled">modeled</em></label>
-        <label><input type="radio" name="mode" value="early" /> <span>Early Voting</span> <em class="tag modeled">modeled</em></label>
-        <label><input type="radio" name="mode" value="vbm" /> <span>Vote by Mail</span> <em class="tag modeled">modeled</em></label>
+        <label><input type="radio" name="mode" value="total" checked /> <span>Total</span> <em class="tag real" data-mode-stat="total"></em></label>
+        <label><input type="radio" name="mode" value="ed" /> <span>Election Day</span> <em class="tag" data-mode-stat="ed"></em></label>
+        <label><input type="radio" name="mode" value="early" /> <span>Early Voting</span> <em class="tag" data-mode-stat="early"></em></label>
+        <label><input type="radio" name="mode" value="vbm" /> <span>Vote by Mail</span> <em class="tag" data-mode-stat="vbm"></em></label>
       </div>
-      <p class="muted">
+      <p class="muted" id="mode-explainer">
         Total reflects certified 2024 presidential totals per precinct.
-        Mode-specific layers are <strong>modeled</strong> splits — the source
-        data does not publish Early/VBM/Election Day by precinct. See README
-        for methodology.
+        Mode-specific layers use real numbers from county-clerk certified
+        results where present in <code>data/raw/</code>, and fall back to a
+        statewide-mix model elsewhere. See README for the model and the
+        county-by-county fetch list.
       </p>
     </section>
 

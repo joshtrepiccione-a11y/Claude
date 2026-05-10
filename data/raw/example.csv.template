@@ -1,0 +1,6 @@
+county,precinct,mode,harris,trump,other,total
+# Delete or rename this file before running ingest. This is a
+# schema example, not real data. See README.md in this folder.
+Atlantic,Brigantine 1,ED,180,260,5,445
+Atlantic,Brigantine 1,Early,40,55,1,96
+Atlantic,Brigantine 1,VBM,95,40,0,135

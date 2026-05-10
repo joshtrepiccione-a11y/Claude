@@ -43,14 +43,25 @@ Presidential vote totals (Harris / Trump / Other) are from the same
 source, which the author notes excludes allocated provisional ballots
 and was collected before certification.
 
-**Mode-of-voting splits.** The source data does **not** publish
-Election Day / Early Voting / Vote by Mail breakdowns by precinct — NJ
-counties report mode splits at the county level, with only Election Day
-machine votes assigned to precincts in most public tabulations.
+**Mode-of-voting splits — real where provided, modeled elsewhere.**
+NJ counties publish mode splits in the certified statement of vote
+(typically as PDFs from the county clerk and from the NJ Division of
+Elections), but each county uses a different layout. The app supports
+ingesting that data on a per-precinct basis:
 
-So the mode layers in this app are **modeled**, not measured. Per
-precinct, the actual presidential totals are split using NJ 2024
-statewide mode shares and partisan-skew offsets:
+- Drop CSV files into `data/raw/` (one row per precinct × mode).
+  See [`data/raw/README.md`](data/raw/README.md) for the schema and a
+  per-county source URL list.
+- Run `python3 scripts/ingest.py`.
+- The script overwrites the matching precincts' `ed_*` / `early_*` /
+  `vbm_*` fields with real numbers and flips `mode_source.<mode>`
+  from `modeled` to `real`. Precincts/modes without provided data
+  stay modeled. The run is **idempotent** — rerunning with an empty
+  `data/raw/` reverts everything to modeled.
+
+For modes/precincts without real data, the fallback model splits the
+precinct's certified presidential total using NJ 2024 statewide mode
+shares and partisan-skew offsets:
 
 | Mode          | Share of turnout | D−R shift vs. precinct baseline |
 | ------------- | ---------------- | ------------------------------- |
@@ -62,15 +73,20 @@ These rates approximate the statewide pattern reported by the NJ
 Division of Elections for the 2024 general (Republicans
 disproportionately voted on Election Day; Democrats disproportionately
 voted by mail) but are applied uniformly — they do not capture
-precinct-to-precinct variation in mode preference. Each mode-specific
-view in the UI carries a `modeled` badge. Aggregating the three modes
-back to the precinct level reproduces the real totals (±1 vote from
-rounding).
+precinct-to-precinct variation in mode preference.
+
+The UI surfaces this granularly: each mode toggle shows whether 0% /
+some-% / 100% of precincts have real data, and each precinct's hover
+panel carries a `real` or `modeled` badge for the current mode.
+Aggregating the three modes back to the precinct level reproduces
+the real totals (±1 vote from rounding).
 
 ## Rebuilding the data file
 
-The processing pipeline is not committed because the upstream shapefile
-is ~14 MB. To regenerate `data/nj_cd2_precincts.geojson`:
+Two pipelines:
+
+**Full rebuild** (regenerate the GeoJSON from upstream sources). The
+upstream NJ shapefile is ~14 MB so it's not committed.
 
 ```sh
 pip3 install pyshp shapely
@@ -81,7 +97,15 @@ curl -sLo nj02.geojson https://raw.githubusercontent.com/unitedstates/districts/
 python3 /path/to/scripts/build_geojson.py
 ```
 
-See `scripts/build_geojson.py` for the full pipeline.
+**Ingest real mode data** (after the initial build, or any time you
+add CSVs to `data/raw/`):
+
+```sh
+python3 scripts/ingest.py
+```
+
+See [`data/raw/README.md`](data/raw/README.md) for the CSV schema and
+per-county source URLs.
 
 ## Limitations
 
