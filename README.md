@@ -19,6 +19,18 @@ python3 -m http.server 8000
 
 No build step, no dependencies, no framework. Just Leaflet + plain JS.
 
+## Deploy
+
+The site ships via GitHub Pages from
+`.github/workflows/pages.yml`. The workflow runs on every push to
+`main` and to this feature branch, and can be triggered manually
+(`workflow_dispatch`). One-time setup in the repo: **Settings &rarr;
+Pages &rarr; Source: GitHub Actions**. After that, pushes auto-deploy.
+
+The artifact is the entire repo (it's all static — `index.html`,
+`app.js`, `style.css`, `data/`); GitHub Pages serves `index.html` at
+the site root.
+
 ## File layout
 
 ```
