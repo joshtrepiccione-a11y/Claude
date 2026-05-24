@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Atlantic County, NJ — 2024 Presidential precinct map &amp; scenario tool</title>
+<title>NJ Legislative District 8 — 2027 General (hypothetical) precinct map &amp; scenario tool</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 <link rel="stylesheet" href="style.css" />
@@ -12,37 +12,64 @@
 <div id="app">
   <aside id="sidebar">
     <header>
-      <h1>Atlantic County, NJ</h1>
-      <p class="sub">2024 General Election &middot; presidential &middot; 151 precincts</p>
+      <h1>NJ Legislative District 8</h1>
+      <p class="sub">2027 General Election &middot; State Senate + General Assembly &middot; <span id="precinct-count">121</span> precincts</p>
     </header>
 
     <section class="panel" id="totals-panel">
-      <h2>County totals</h2>
-      <div id="totals"></div>
-      <div class="bar" id="totals-bar"><span class="d"></span><span class="r"></span><span class="o"></span></div>
-      <p class="muted" id="totals-meta"></p>
-      <div id="totals-scenario" class="scenario-deltas hidden"></div>
+      <h2>District totals</h2>
+
+      <div class="race-block" id="sen-totals-block">
+        <div class="race-block-header">
+          <span class="race-label">State Senate</span>
+          <span class="race-meta" id="sen-totals-meta"></span>
+        </div>
+        <div id="sen-totals" class="totals-grid"></div>
+        <div class="bar" id="sen-totals-bar"><span class="d"></span><span class="r"></span><span class="o"></span></div>
+        <div id="sen-totals-scenario" class="scenario-deltas hidden"></div>
+      </div>
+
+      <div class="race-block" id="asm-totals-block">
+        <div class="race-block-header">
+          <span class="race-label">General Assembly (vote for two)</span>
+          <span class="race-meta" id="asm-totals-meta"></span>
+        </div>
+        <div id="asm-totals" class="totals-grid"></div>
+        <p class="winners-line" id="asm-winners"></p>
+        <div id="asm-totals-scenario" class="scenario-deltas hidden"></div>
+      </div>
     </section>
 
     <section class="panel">
       <h2>View</h2>
       <div class="mode-group">
-        <label><input type="radio" name="view" value="baseline" checked /> <span>Certified results</span></label>
+        <label><input type="radio" name="view" value="baseline" checked /> <span>Baseline (2027 projection)</span></label>
         <label><input type="radio" name="view" value="scenario" /> <span>Scenario</span></label>
       </div>
       <p class="muted">
-        Baseline shows certified totals (real) with mode breakdowns where
-        available; otherwise a statewide-mix model
-        (ED&nbsp;55% / EV&nbsp;15% / VBM&nbsp;30%; partisan shifts
-        ED&nbsp;&minus;8 / EV&nbsp;+4 / VBM&nbsp;+12). Scenario lets you
-        apply hypothetical swings on top.
+        Baseline is a 2027 projection: 60% prior cycle (2021 Senate /
+        2023 Assembly) + 40% 2024 presidential, with the statewide-mix
+        overlay for ED/EV/VBM (55/15/30; partisan shifts &minus;8/+4/+12).
+        Scenario lets you apply hypothetical swings on top.
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2>Race focus</h2>
+      <div class="mode-group" id="race-group">
+        <label><input type="radio" name="race" value="sen" checked /> <span>State Senate</span></label>
+        <label><input type="radio" name="race" value="asm" /> <span>General Assembly</span></label>
+      </div>
+      <p class="muted tiny">
+        Race focus only emphasizes a race in the hover panel. The map
+        coloring is governed by the Color-by control below, independently.
       </p>
     </section>
 
     <section class="panel">
       <h2>Vote mode</h2>
       <div class="mode-group" id="mode-group">
-        <label><input type="radio" name="mode" value="total" checked /> <span>Total</span> <em class="tag real" data-mode-stat="total"></em></label>
+        <label><input type="radio" name="mode" value="total" checked /> <span>Total</span> <em class="tag" data-mode-stat="total"></em></label>
         <label><input type="radio" name="mode" value="ed" /> <span>Election Day</span> <em class="tag" data-mode-stat="ed"></em></label>
         <label><input type="radio" name="mode" value="early" /> <span>Early Voting</span> <em class="tag" data-mode-stat="early"></em></label>
         <label><input type="radio" name="mode" value="vbm" /> <span>Vote by Mail</span> <em class="tag" data-mode-stat="vbm"></em></label>
@@ -52,7 +79,9 @@
     <section class="panel">
       <h2>Color by</h2>
       <div class="mode-group">
-        <label><input type="radio" name="metric" value="margin" checked /> <span>Margin (D&minus;R)</span></label>
+        <label><input type="radio" name="metric" value="sen_margin" checked /> <span>Senate margin (D&minus;R)</span></label>
+        <label><input type="radio" name="metric" value="asm_margin" /> <span>Assembly ticket margin</span></label>
+        <label><input type="radio" name="metric" value="asm_outcome" /> <span>Assembly outcome (2D / split / 2R)</span></label>
         <label><input type="radio" name="metric" value="turnout" /> <span>Turnout</span></label>
       </div>
       <div id="legend"></div>
@@ -65,27 +94,46 @@
         these sliders.
       </p>
 
-      <fieldset class="slider-group" id="cw-swings">
-        <legend>County-wide D&minus;R swing</legend>
+      <fieldset class="slider-group" id="sen-swings">
+        <legend>Senate D&minus;R swing</legend>
         <div class="slider-row">
-          <label for="sw-ed">Election Day</label>
-          <input type="range" id="sw-ed" min="-15" max="15" step="0.5" value="0" />
-          <span class="slider-val" id="sw-ed-val">+0.0</span>
+          <label for="sen-sw-ed">Election Day</label>
+          <input type="range" id="sen-sw-ed" min="-15" max="15" step="0.5" value="0" />
+          <span class="slider-val" id="sen-sw-ed-val">+0.0</span>
         </div>
         <div class="slider-row">
-          <label for="sw-ev">Early Voting</label>
-          <input type="range" id="sw-ev" min="-15" max="15" step="0.5" value="0" />
-          <span class="slider-val" id="sw-ev-val">+0.0</span>
+          <label for="sen-sw-ev">Early Voting</label>
+          <input type="range" id="sen-sw-ev" min="-15" max="15" step="0.5" value="0" />
+          <span class="slider-val" id="sen-sw-ev-val">+0.0</span>
         </div>
         <div class="slider-row">
-          <label for="sw-vbm">Vote by Mail</label>
-          <input type="range" id="sw-vbm" min="-15" max="15" step="0.5" value="0" />
-          <span class="slider-val" id="sw-vbm-val">+0.0</span>
+          <label for="sen-sw-vbm">Vote by Mail</label>
+          <input type="range" id="sen-sw-vbm" min="-15" max="15" step="0.5" value="0" />
+          <span class="slider-val" id="sen-sw-vbm-val">+0.0</span>
+        </div>
+      </fieldset>
+
+      <fieldset class="slider-group" id="asm-swings">
+        <legend>Assembly ticket D&minus;R swing</legend>
+        <div class="slider-row">
+          <label for="asm-sw-ed">Election Day</label>
+          <input type="range" id="asm-sw-ed" min="-15" max="15" step="0.5" value="0" />
+          <span class="slider-val" id="asm-sw-ed-val">+0.0</span>
+        </div>
+        <div class="slider-row">
+          <label for="asm-sw-ev">Early Voting</label>
+          <input type="range" id="asm-sw-ev" min="-15" max="15" step="0.5" value="0" />
+          <span class="slider-val" id="asm-sw-ev-val">+0.0</span>
+        </div>
+        <div class="slider-row">
+          <label for="asm-sw-vbm">Vote by Mail</label>
+          <input type="range" id="asm-sw-vbm" min="-15" max="15" step="0.5" value="0" />
+          <span class="slider-val" id="asm-sw-vbm-val">+0.0</span>
         </div>
       </fieldset>
 
       <fieldset class="slider-group" id="cw-shares">
-        <legend>County-wide turnout mix</legend>
+        <legend>District-wide turnout mix</legend>
         <div class="slider-row">
           <label for="sh-ed">Election Day share</label>
           <input type="range" id="sh-ed" min="30" max="80" step="0.5" />
@@ -107,10 +155,39 @@
         </p>
       </fieldset>
 
+      <fieldset class="slider-group" id="extras">
+        <legend>Assembly mechanics</legend>
+        <div class="slider-row">
+          <label for="bullet">Bullet-vote rate</label>
+          <input type="range" id="bullet" min="0" max="30" step="0.5" value="8" />
+          <span class="slider-val" id="bullet-val">8.0%</span>
+        </div>
+        <div class="slider-row">
+          <label for="intra-d">D ticket: D1 share</label>
+          <input type="range" id="intra-d" min="30" max="70" step="0.5" value="52" />
+          <span class="slider-val" id="intra-d-val">52.0%</span>
+        </div>
+        <div class="slider-row">
+          <label for="intra-r">R ticket: R1 share</label>
+          <input type="range" id="intra-r" min="30" max="70" step="0.5" value="52" />
+          <span class="slider-val" id="intra-r-val">52.0%</span>
+        </div>
+        <div class="slider-row">
+          <label for="coattail">Sen&rarr;Asm coattail</label>
+          <input type="range" id="coattail" min="0" max="1" step="0.05" value="0" />
+          <span class="slider-val" id="coattail-val">0.00</span>
+        </div>
+        <p class="muted tiny">
+          Bullet-vote rate: share of Assembly voters who cast only one
+          vote instead of two. Coattail: fraction of the Senate swing
+          added to the Assembly ticket swing in each mode.
+        </p>
+      </fieldset>
+
       <details class="muni-overrides">
-        <summary>Per-municipality overrides (23)</summary>
-        <p class="muted tiny">Applied on top of the county-wide swing.
-        Range &minus;20 to +20 points per mode.</p>
+        <summary>Per-municipality overrides (<span id="muni-count">0</span>)</summary>
+        <p class="muted tiny">Applied on top of the district-wide swings.
+        Range &minus;20 to +20 points per (race, mode).</p>
         <div id="muni-list"></div>
       </details>
 
@@ -130,13 +207,17 @@
 
     <footer>
       <p class="muted">
-        Boundaries &amp; presidential totals: 2024 NJ Precincts shapefile
+        Boundaries &amp; 2024 presidential totals: NJ Precincts shapefile
         compiled by @Twizzyu (via
         <a href="https://github.com/21MetcalfJ/2024Precincts" target="_blank" rel="noopener">21MetcalfJ/2024Precincts</a>),
-        filtered to Atlantic County. Mode breakdowns are modeled by the
-        same statewide-mix overlay used by the parent NJ-2 site;
-        per-precinct certified mode splits will replace them as they
-        become available.
+        filtered to LD8 (2021 plan: Hammonton plus the 17 Burlington-County
+        munis wholly inside the district). 2021 Senate and 2023 Assembly
+        precinct-level numbers are projections from the 2024 presidential
+        baseline shifted by the certified LD8 cycle margins (Senate
+        &minus;5, Assembly &minus;11 vs presidential); the 2027 baseline
+        is a 60/40 weighted mix. Drop real precinct totals into
+        <code>data/ld8_real_baselines.json</code> and re-run
+        <code>scripts/build_ld8.py</code> to replace the projections.
       </p>
     </footer>
   </aside>
