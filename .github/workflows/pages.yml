@@ -3,6 +3,7 @@ name: Deploy LD8 site to GitHub Pages
 on:
   push:
     branches:
+      - main
       - claude/sleepy-babbage-EwxKw
   workflow_dispatch:
 
