@@ -3,8 +3,8 @@ name: Deploy LD8 site to GitHub Pages
 on:
   push:
     branches:
-      - main
-      - claude/sleepy-babbage-EwxKw
+      - claude/initial-setup-SjVdw   # repo default branch
+      - claude/sleepy-babbage-EwxKw  # PR preview
   workflow_dispatch:
 
 permissions:
