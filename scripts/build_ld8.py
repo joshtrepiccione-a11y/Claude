@@ -1,38 +1,55 @@
 #!/usr/bin/env python3
 """Build data/ld8_precincts.geojson for the NJ Legislative District 8
-(2021-redistricting) precinct map.
+(2021 redistricting) precinct map.
 
 Inputs (placed in /tmp by the operator, or downloaded by --fetch):
   - 21MetcalfJ/2024Precincts NJ shapefile (5-part: .shp/.shx/.dbf/.prj/.cpg)
-  - LD8 boundary: we use the official LD8 (2021 plan) municipality list
-    below as a proxy for the boundary, since all included municipalities
-    are wholly inside the district. This matches the published 2021
-    apportionment plan.
+  - LD8 boundary: every municipality in the post-2021 LD8 map is wholly
+    inside the district, so we use the official 25-muni allowlist as a
+    boundary proxy (exact; no precincts to reassign).
 
 Outputs:
   - data/ld8_precincts.geojson with one feature per precinct, each
     carrying:
       county, precinct, municipality,
       pres_harris, pres_trump, pres_other, pres_total, pres_margin_pct,
-      sen21_d, sen21_r, sen21_other, sen21_total,
-      assem23_d1, assem23_d2, assem23_r1, assem23_r2, assem23_other,
-        assem23_total,
+      sen23_d, sen23_r, sen23_other, sen23_total,
+      assem25_d1, assem25_d2, assem25_r1, assem25_r2, assem25_other,
+        assem25_total,
       sen27_baseline_{d,r,other,total},
-      assem27_baseline_{d1,d2,r1,r2,other,total},
+      assem27_baseline_{d1,d2,r1,r2,other,total,voters},
       sen27_modes / assem27_modes — per-mode (ed/early/vbm) splits with
         the statewide-mix overlay,
       mode_source — { sen: {ed,early,vbm}, asm: {ed,early,vbm} }.
+      baseline_source — { sen, asm }: 'real-calibrated' (district
+        aggregate matches certified results; per-precinct distribution
+        is interpolated from 2024 presidential), or 'modeled'.
 
-The 2021 Senate and 2023 Assembly precinct totals are projected from
-2024 presidential results using documented LD8 historical shifts —
-they are NOT certified precinct-level results. Every projected slice
-is flagged as `modeled` in the mode_source map so the UI badges read
-honestly.
+Baseline projection method
+--------------------------
+The 2027 baseline is a **straight copy of the most recent real cycle**
+for each race:
+  - Senate 2027 baseline   ← 2023 Senate (Tiver R 28,013 / Burton D 26,648).
+  - Assembly 2027 baseline ← 2025 Assembly (Angelozzi D 50,168 /
+                              Katz D 50,036 / Torrissi R 46,262 /
+                              Umba R 44,300; 2-vote race).
 
-To replace the projections with certified precinct data, drop a JSON
-file at data/ld8_real_baselines.json keyed by precinct name with the
-real per-candidate vote counts; this script will pick them up and
-flip the mode_source flag to `real`.
+District aggregates match the certified results exactly. Per-precinct
+distribution is calibrated to those aggregates by:
+  1. Using each precinct's 2024 presidential D/R/O shares as the spatial
+     pattern.
+  2. Applying a uniform district-wide additive shift so the precinct
+     shares average back to the target D-share for the race.
+  3. Scaling each precinct's turnout proportionally so the district
+     turnout matches the certified total (Senate voters; Assembly voters
+     derived from candidate-votes / (2 - bullet)).
+  4. A final renormalization step nudges per-precinct totals so that the
+     district sum hits the certified target exactly (within rounding).
+
+To replace any precinct's distribution with certified precinct-level
+counts, drop them in data/ld8_real_baselines.json keyed by precinct
+name; the build script will use those values directly and flip
+mode_source / baseline_source to `real` for the matching precinct.
 
 Usage:
   python3 scripts/build_ld8.py            # uses /tmp shapefile
@@ -46,7 +63,6 @@ import json
 import os
 import re
 import sys
-import tempfile
 import urllib.request
 import zipfile
 
@@ -64,17 +80,27 @@ SHP_BASENAME = "2024 NJ Precincts"
 OUT = "data/ld8_precincts.geojson"
 REAL_OVERRIDES = "data/ld8_real_baselines.json"
 
-# NJ Legislative District 8 (2021 plan) -- wholly contained municipalities.
-# Each tuple is (county, municipality_name_as_in_shapefile_prefix).
+# NJ Legislative District 8 (post-2021 apportionment) — the 25 wholly
+# contained municipalities. Source: NJ Legislative Apportionment
+# Commission 2021 plan; corroborated by Wikipedia / Ballotpedia.
 LD8_MUNIS = [
+    # Atlantic County
+    ("Atlantic",   "Egg Harbor City"),
+    ("Atlantic",   "Folsom Borough"),
     ("Atlantic",   "Hammonton Town"),
+    ("Atlantic",   "Mullica Township"),
+    # Burlington County
     ("Burlington", "Bass River Township"),
+    ("Burlington", "Chesterfield Township"),
     ("Burlington", "Eastampton Township"),
     ("Burlington", "Evesham Township"),
     ("Burlington", "Hainesport Township"),
     ("Burlington", "Lumberton Township"),
+    ("Burlington", "Mansfield Township"),
     ("Burlington", "Medford Lakes Borough"),
     ("Burlington", "Medford Township"),
+    ("Burlington", "Mount Holly Township"),
+    ("Burlington", "New Hanover Township"),
     ("Burlington", "Pemberton Borough"),
     ("Burlington", "Pemberton Township"),
     ("Burlington", "Shamong Township"),
@@ -88,20 +114,47 @@ LD8_MUNIS = [
 ]
 LD8_SET = set(LD8_MUNIS)
 
+# ===== Certified district-level baselines =====
+# 2023 Senate (LD8): Latham Tiver (R) defeated Gaye Burton (D).
+REAL_SEN23 = {"d": 26648, "r": 28013, "other": 0}
+REAL_SEN23["total"] = sum(REAL_SEN23.values())
+
+# 2025 Assembly (LD8) — 2-vote race; these are CANDIDATE-vote totals.
+# Angelozzi (D) and Katz (D) defeated Torrissi (R) and Umba (R).
+# Top finisher in each party gets the "1" slot.
+REAL_ASM25 = {
+    "d1": 50168,   # Angelozzi
+    "d2": 50036,   # Katz
+    "r1": 46262,   # Torrissi
+    "r2": 44300,   # Umba
+    "other": 0,
+}
+REAL_ASM25["d_total"] = REAL_ASM25["d1"] + REAL_ASM25["d2"]
+REAL_ASM25["r_total"] = REAL_ASM25["r1"] + REAL_ASM25["r2"]
+REAL_ASM25["cand_total"] = (REAL_ASM25["d_total"] + REAL_ASM25["r_total"]
+                            + REAL_ASM25["other"])
+
+# Historical Assembly bullet-vote rate baseline. Used to derive the
+# implied voter count from candidate-vote totals: voters = cand / (2 - b).
+# 5% is the typical NJ Assembly bullet rate observed in tight races.
+ASM_BASELINE_BULLET = 0.05
+REAL_ASM25_VOTERS = REAL_ASM25["cand_total"] / (2 - ASM_BASELINE_BULLET)
+
+# Intra-party splits — derived from the real 2025 totals.
+INTRA_D_D1 = REAL_ASM25["d1"] / REAL_ASM25["d_total"]   # ~0.5007
+INTRA_R_R1 = REAL_ASM25["r1"] / REAL_ASM25["r_total"]   # ~0.5108
+
 # Strip Burlington's verbose suffix ("... Election District", "... Ward N - District N")
-# and the trailing Atlantic-style "01 02" digit groups, leaving a clean
-# municipality label.
+# and the trailing Atlantic-style "01 02" digit groups.
 SUFFIX_RE = re.compile(
-    r"\s+Election District(?:\:.*)?$"          # Burlington-style
+    r"\s+Election District(?:\:.*)?$"
     r"|"
-    r"(\s+\d+)+\s*$"                            # Atlantic-style digit run
+    r"(\s+\d+)+\s*$"
 )
 
 
 def muni_of(precinct: str) -> str:
-    """Strip trailing precinct/ward markers to recover the muni name."""
     s = precinct
-    # Burlington shapefile is verbose; Atlantic is bare. Loop until clean.
     while True:
         new = SUFFIX_RE.sub("", s).strip()
         if new == s:
@@ -110,103 +163,43 @@ def muni_of(precinct: str) -> str:
     return s
 
 
-# ---- 2027 projection model -----------------------------------------------
-# Historical LD8 shifts vs presidential, derived from the 2021 / 2023
-# certified district totals (Stanfield ~+5 vs Murphy-Ciattarelli; the
-# 2023 Assembly ticket ~+11 vs the same baseline). Applied uniformly
-# across precincts when synthesizing prior-cycle results.
-LD8_SHIFT_SEN_VS_PRES = -5.0   # points; negative = more R than presidential
-LD8_SHIFT_ASM_VS_PRES = -11.0
-
-# Off-year turnout multipliers vs presidential turnout.
-OFFYEAR_TURNOUT_SEN_2021 = 0.42
-OFFYEAR_TURNOUT_ASM_2023 = 0.39
-
-# Weighted-mix 2027 baseline: 60% prior-cycle, 40% 2024 presidential.
-W_PRIOR = 0.60
-W_PRES = 0.40
-
-# Intra-party Assembly default split (D1 vs D2, R1 vs R2). 52/48 captures
-# the typical incumbency-driven gap; can be re-shaped at runtime by the
-# scenario slider.
-D1_SHARE = 0.52
-R1_SHARE = 0.52
-
 # Statewide-mix overlay (mirrors the Atlantic site).
 MIX = {"ed": 0.55, "early": 0.15, "vbm": 0.30}
 MODE_SWING_PTS = {"ed": -8.0, "early": 4.0, "vbm": 12.0}
 
 
-def shift_partisan(d, r, o, total, swing_pts):
+def shift_partisan_shares(d_share, r_share, o_share, swing_pts):
     """Move swing_pts/2 share from R to D (or vice versa), preserve Other,
-    renormalize to total. Returns (d', r', o')."""
-    if total <= 0:
-        return 0.0, 0.0, 0.0
-    ds = d / total
-    rs = r / total
-    os_ = o / total
+    renormalize. Returns shares (sum to 1)."""
     delta = swing_pts / 200.0
-    ds += delta
-    rs -= delta
-    if ds < 0: ds = 0.0
-    if rs < 0: rs = 0.0
-    if os_ < 0: os_ = 0.0
-    s = ds + rs + os_
+    d_share = max(0.0, d_share + delta)
+    r_share = max(0.0, r_share - delta)
+    o_share = max(0.0, o_share)
+    s = d_share + r_share + o_share
     if s > 0:
-        ds /= s; rs /= s; os_ /= s
-    return ds * total, rs * total, os_ * total
-
-
-def project_prior_cycle(pres_h, pres_t, pres_o, pres_total,
-                        shift_pts, turnout_mult):
-    """Synthesize a prior-cycle race (Senate '21 or Assembly '23) from the
-    2024 presidential numbers."""
-    new_total = pres_total * turnout_mult
-    d, r, o = shift_partisan(pres_h, pres_t, pres_o, pres_total, shift_pts)
-    # Rescale to the new (lower) off-year total.
-    if pres_total > 0:
-        scale = new_total / pres_total
-        d *= scale; r *= scale; o *= scale
-    return d, r, o, new_total
-
-
-def weighted_2027(prior_d, prior_r, prior_o, prior_total,
-                  pres_h, pres_t, pres_o, pres_total):
-    """Blend prior-cycle and presidential turnout/partisan structure for the
-    2027 baseline projection."""
-    total = W_PRIOR * prior_total + W_PRES * pres_total
-    if prior_total <= 0 and pres_total <= 0:
-        return 0.0, 0.0, 0.0, 0.0
-    p_d = prior_d / prior_total if prior_total else 0
-    p_r = prior_r / prior_total if prior_total else 0
-    p_o = prior_o / prior_total if prior_total else 0
-    s_d = pres_h / pres_total if pres_total else 0
-    s_r = pres_t / pres_total if pres_total else 0
-    s_o = pres_o / pres_total if pres_total else 0
-    d = (W_PRIOR * p_d + W_PRES * s_d) * total
-    r = (W_PRIOR * p_r + W_PRES * s_r) * total
-    o = (W_PRIOR * p_o + W_PRES * s_o) * total
-    return d, r, o, total
+        d_share /= s; r_share /= s; o_share /= s
+    return d_share, r_share, o_share
 
 
 def split_modes(d, r, o, total):
     """Allocate (d,r,o,total) across ED/EV/VBM using the statewide mix
-    overlay and per-mode partisan shifts. Returns dict keyed by mode."""
+    overlay and per-mode partisan shifts."""
     out = {}
+    if total <= 0:
+        for m in ("ed", "early", "vbm"):
+            out[m] = {"d": 0.0, "r": 0.0, "o": 0.0, "total": 0.0}
+        return out
+    ds = d / total
+    rs = r / total
+    os_ = o / total
     for m in ("ed", "early", "vbm"):
-        share = MIX[m]
-        mt = total * share
-        md, mr, mo = shift_partisan(d, r, o, total, MODE_SWING_PTS[m])
-        # md/mr/mo are in the same scale as total; rescale to mt.
-        if total > 0:
-            scale = mt / total
-            md *= scale; mr *= scale; mo *= scale
-        out[m] = {"d": md, "r": mr, "o": mo, "total": mt}
+        mt = total * MIX[m]
+        md, mr, mo_ = shift_partisan_shares(ds, rs, os_, MODE_SWING_PTS[m])
+        out[m] = {"d": md * mt, "r": mr * mt, "o": mo_ * mt, "total": mt}
     return out
 
 
 def ensure_shapefile() -> str:
-    """Return path to the unzipped .shp file, downloading if needed."""
     base = "/tmp"
     shp = os.path.join(base, f"{SHP_BASENAME}.shp")
     if os.path.exists(shp):
@@ -222,14 +215,11 @@ def ensure_shapefile() -> str:
 
 
 def shape_to_geojson(shp):
-    """Convert a pyshp Shape (Polygon/MultiPolygon) to GeoJSON geometry."""
     parts = list(shp.parts) + [len(shp.points)]
     rings = []
     for i in range(len(parts) - 1):
         ring = shp.points[parts[i]:parts[i + 1]]
         rings.append([[float(x), float(y)] for x, y in ring])
-    if len(rings) == 1:
-        return {"type": "Polygon", "coordinates": rings}
     return {"type": "Polygon", "coordinates": rings}
 
 
@@ -251,10 +241,8 @@ def main() -> int:
               f"from {REAL_OVERRIDES}", file=sys.stderr)
 
     sf = shapefile.Reader(shp_path)
-    matched = 0
-    muni_counts: dict[tuple[str, str], int] = {}
-    features = []
-    skipped_munis: dict[tuple[str, str], int] = {}
+    matched = []   # list of (record, shape) tuples
+    muni_counts = {}
 
     for shrec in sf.shapeRecords():
         rec = shrec.record
@@ -265,48 +253,136 @@ def main() -> int:
         muni = muni_of(prec_name)
         key = (county, muni)
         if key not in LD8_SET:
-            skipped_munis[key] = skipped_munis.get(key, 0) + 1
             continue
-
-        matched += 1
+        matched.append((rec, shrec.shape, muni))
         muni_counts[key] = muni_counts.get(key, 0) + 1
 
+    if not matched:
+        print("WARN: no precincts matched LD8 allowlist.", file=sys.stderr)
+        return 2
+
+    # --- Calibrate per-precinct shares against district totals ---
+    # Step 1: gather presidential totals for the district.
+    dist_pres_h = sum(int(r["Harris"] or 0) for r, _, _ in matched)
+    dist_pres_t = sum(int(r["Trump"]  or 0) for r, _, _ in matched)
+    dist_pres_o = sum(int(r["Other"]  or 0) for r, _, _ in matched)
+    dist_pres_total = sum(int(r["Total"] or 0) for r, _, _ in matched)
+
+    pres_d_share = dist_pres_h / dist_pres_total
+    pres_r_share = dist_pres_t / dist_pres_total
+    pres_o_share = dist_pres_o / dist_pres_total
+
+    # Step 2: derive per-race target shares + shift (additive on D share).
+    sen_target_d = REAL_SEN23["d"] / REAL_SEN23["total"]
+    sen_target_r = REAL_SEN23["r"] / REAL_SEN23["total"]
+    sen_target_o = REAL_SEN23["other"] / REAL_SEN23["total"]
+    sen_shift_pts = (sen_target_d - pres_d_share) * 200  # since shift moves X/200 to D
+
+    asm_target_d = REAL_ASM25["d_total"] / REAL_ASM25["cand_total"]
+    asm_target_r = REAL_ASM25["r_total"] / REAL_ASM25["cand_total"]
+    asm_target_o = REAL_ASM25["other"]   / REAL_ASM25["cand_total"]
+    asm_shift_pts = (asm_target_d - pres_d_share) * 200
+
+    print(f"district pres: D={pres_d_share:.4f} R={pres_r_share:.4f} O={pres_o_share:.4f} total={dist_pres_total}",
+          file=sys.stderr)
+    print(f"sen23 target: D={sen_target_d:.4f} R={sen_target_r:.4f} shift={sen_shift_pts:+.2f}pts", file=sys.stderr)
+    print(f"asm25 target: D={asm_target_d:.4f} R={asm_target_r:.4f} shift={asm_shift_pts:+.2f}pts "
+          f"(voters≈{REAL_ASM25_VOTERS:.0f})", file=sys.stderr)
+
+    # Step 3: per-precinct projected shares + voter counts; sum, then
+    # final-pass renormalize so district totals match the targets exactly.
+    proj = []  # parallel to `matched`
+    sen_d_sum = sen_r_sum = sen_o_sum = sen_total_sum = 0.0
+    asm_d_sum = asm_r_sum = asm_o_sum = asm_voters_sum = 0.0
+    for rec, shape, muni in matched:
         h = int(rec["Harris"] or 0)
-        t = int(rec["Trump"] or 0)
-        o = int(rec["Other"] or 0)
+        t = int(rec["Trump"]  or 0)
+        o = int(rec["Other"]  or 0)
         tot = int(rec["Total"] or (h + t + o))
-        pres_margin_pct = ((h - t) / tot * 100) if tot else 0.0
+        pds = h / tot if tot else 0
+        prs = t / tot if tot else 0
+        pos = o / tot if tot else 0
 
-        # ---- Synthesize prior-cycle baselines ----
-        sen21_d, sen21_r, sen21_o, sen21_tot = project_prior_cycle(
-            h, t, o, tot, LD8_SHIFT_SEN_VS_PRES, OFFYEAR_TURNOUT_SEN_2021)
-        asm23_dtot, asm23_rtot, asm23_otot, asm23_tot = project_prior_cycle(
-            h, t, o, tot, LD8_SHIFT_ASM_VS_PRES, OFFYEAR_TURNOUT_ASM_2023)
-        # The Assembly is two-vote: split each party's total across two
-        # candidates by the intra-party constant.
-        assem23_d1 = asm23_dtot * D1_SHARE
-        assem23_d2 = asm23_dtot * (1 - D1_SHARE)
-        assem23_r1 = asm23_rtot * R1_SHARE
-        assem23_r2 = asm23_rtot * (1 - R1_SHARE)
+        # Senate per-precinct
+        s_d, s_r, s_o = shift_partisan_shares(pds, prs, pos, sen_shift_pts)
+        s_total = tot * (REAL_SEN23["total"] / dist_pres_total)
+        s_dv, s_rv, s_ov = s_d * s_total, s_r * s_total, s_o * s_total
 
-        # ---- 2027 baseline projection (weighted mix) ----
-        sen27_d, sen27_r, sen27_o, sen27_tot = weighted_2027(
-            sen21_d, sen21_r, sen21_o, sen21_tot, h, t, o, tot)
-        asm27_dt, asm27_rt, asm27_o, asm27_tot = weighted_2027(
-            asm23_dtot, asm23_rtot, asm23_otot, asm23_tot, h, t, o, tot)
-        # Assembly is two-vote, so the per-voter "ticket total" maps to
-        # 2*voters. We track per-candidate counts; the ticket total is
-        # implied as d1+d2+r1+r2+other.
-        assem27_d1 = asm27_dt * D1_SHARE
-        assem27_d2 = asm27_dt * (1 - D1_SHARE)
-        assem27_r1 = asm27_rt * R1_SHARE
-        assem27_r2 = asm27_rt * (1 - R1_SHARE)
+        # Assembly per-precinct (in voters; per-cand split happens at display time)
+        a_d, a_r, a_o = shift_partisan_shares(pds, prs, pos, asm_shift_pts)
+        a_voters = tot * (REAL_ASM25_VOTERS / dist_pres_total)
+        a_dv, a_rv, a_ov = a_d * a_voters, a_r * a_voters, a_o * a_voters
 
-        # ---- Mode splits (statewide-mix overlay) ----
-        sen_modes = split_modes(sen27_d, sen27_r, sen27_o, sen27_tot)
-        asm_modes = split_modes(asm27_dt, asm27_rt, asm27_o, asm27_tot)
+        proj.append({
+            "rec": rec, "shape": shape, "muni": muni,
+            "pres_h": h, "pres_t": t, "pres_o": o, "pres_total": tot,
+            "sen_d": s_dv, "sen_r": s_rv, "sen_o": s_ov, "sen_total": s_total,
+            "asm_d": a_dv, "asm_r": a_rv, "asm_o": a_ov, "asm_voters": a_voters,
+        })
+        sen_d_sum += s_dv; sen_r_sum += s_rv; sen_o_sum += s_ov; sen_total_sum += s_total
+        asm_d_sum += a_dv; asm_r_sum += a_rv; asm_o_sum += a_ov; asm_voters_sum += a_voters
 
-        # ---- Provenance ----
+    # Final-pass scaling: nudge each precinct so district sums hit targets.
+    sen_scale_d = REAL_SEN23["d"] / sen_d_sum if sen_d_sum else 1
+    sen_scale_r = REAL_SEN23["r"] / sen_r_sum if sen_r_sum else 1
+    sen_scale_o = REAL_SEN23["other"] / sen_o_sum if sen_o_sum else 1
+    asm_scale_d = REAL_ASM25["d_total"] / asm_d_sum if asm_d_sum else 1
+    asm_scale_r = REAL_ASM25["r_total"] / asm_r_sum if asm_r_sum else 1
+    asm_scale_o = (REAL_ASM25["other"] / asm_o_sum) if asm_o_sum else 1
+    asm_scale_voters = REAL_ASM25_VOTERS / asm_voters_sum if asm_voters_sum else 1
+    for p in proj:
+        p["sen_d"]  *= sen_scale_d
+        p["sen_r"]  *= sen_scale_r
+        p["sen_o"]  *= sen_scale_o
+        p["sen_total"] = p["sen_d"] + p["sen_r"] + p["sen_o"]
+        p["asm_d"]  *= asm_scale_d
+        p["asm_r"]  *= asm_scale_r
+        p["asm_o"]  *= asm_scale_o
+        p["asm_voters"] *= asm_scale_voters
+
+    # --- Build GeoJSON features ---
+    features = []
+    for p in proj:
+        rec = p["rec"]
+        prec_name = rec["PrecName"]
+        pres_margin_pct = ((p["pres_h"] - p["pres_t"]) / p["pres_total"] * 100) if p["pres_total"] else 0.0
+
+        # Historical 2023 / 2025 numbers we calibrated against — at the
+        # precinct level these match `sen27_baseline_*` and `assem25_*`
+        # (since the 2027 baseline = straight copy of those cycles).
+        sen23_d, sen23_r, sen23_o, sen23_total = p["sen_d"], p["sen_r"], p["sen_o"], p["sen_total"]
+        asm25_voters = p["asm_voters"]
+        asm25_dv, asm25_rv, asm25_ov = p["asm_d"], p["asm_r"], p["asm_o"]
+        # Convert per-precinct voter shares back into candidate-vote
+        # counts using the historical bullet rate and intra-party splits.
+        asm25_cand_total = asm25_voters * (2 - ASM_BASELINE_BULLET)
+        if asm25_voters > 0:
+            ds = asm25_dv / asm25_voters
+            rs = asm25_rv / asm25_voters
+            os_ = asm25_ov / asm25_voters
+        else:
+            ds = rs = os_ = 0
+        asm25_d_cand = ds * asm25_cand_total
+        asm25_r_cand = rs * asm25_cand_total
+        asm25_o_cand = os_ * asm25_cand_total
+        asm25_d1 = asm25_d_cand * INTRA_D_D1
+        asm25_d2 = asm25_d_cand * (1 - INTRA_D_D1)
+        asm25_r1 = asm25_r_cand * INTRA_R_R1
+        asm25_r2 = asm25_r_cand * (1 - INTRA_R_R1)
+
+        # 2027 baseline = straight copy of the prior real cycle.
+        sen27_d, sen27_r, sen27_o, sen27_total = sen23_d, sen23_r, sen23_o, sen23_total
+        asm27_voters = asm25_voters
+        asm27_d_voters = asm25_dv
+        asm27_r_voters = asm25_rv
+        asm27_o_voters = asm25_ov
+
+        sen_modes = split_modes(sen27_d, sen27_r, sen27_o, sen27_total)
+        # For Assembly modes we track per-mode VOTERS + per-mode party
+        # shares; the app applies the bullet-rate / intra-party logic at
+        # display time.
+        asm_modes = split_modes(asm27_d_voters, asm27_r_voters, asm27_o_voters, asm27_voters)
+
         override = real_overrides.get(prec_name) or {}
         mode_source = {
             "sen": {m: ("real" if override.get(f"sen_{m}") else "modeled")
@@ -315,49 +391,52 @@ def main() -> int:
                     for m in ("ed", "early", "vbm")},
         }
         baseline_source = {
-            "sen": "real" if override.get("sen_total") else "modeled",
-            "asm": "real" if override.get("asm_total") else "modeled",
+            "sen": "real" if override.get("sen_total") else "real-calibrated",
+            "asm": "real" if override.get("asm_total") else "real-calibrated",
         }
 
         props = {
-            "county": county,
+            "county": rec["CouName"],
             "precinct": prec_name,
-            "municipality": muni,
+            "municipality": p["muni"],
 
-            # 2024 Presidential (real, certified)
-            "pres_harris": h,
-            "pres_trump": t,
-            "pres_other": o,
-            "pres_total": tot,
+            # 2024 Presidential (real, certified, used as the spatial basis)
+            "pres_harris": p["pres_h"],
+            "pres_trump":  p["pres_t"],
+            "pres_other":  p["pres_o"],
+            "pres_total":  p["pres_total"],
             "pres_margin_pct": round(pres_margin_pct, 2),
 
-            # Synthesized prior-cycle baselines
-            "sen21_d":     round(sen21_d, 1),
-            "sen21_r":     round(sen21_r, 1),
-            "sen21_other": round(sen21_o, 1),
-            "sen21_total": round(sen21_tot, 1),
+            # 2023 Senate (district aggregate is the real certified result;
+            # per-precinct distribution is interpolated from presidential).
+            "sen23_d":     round(sen23_d, 1),
+            "sen23_r":     round(sen23_r, 1),
+            "sen23_other": round(sen23_o, 1),
+            "sen23_total": round(sen23_total, 1),
 
-            "assem23_d1":    round(assem23_d1, 1),
-            "assem23_d2":    round(assem23_d2, 1),
-            "assem23_r1":    round(assem23_r1, 1),
-            "assem23_r2":    round(assem23_r2, 1),
-            "assem23_other": round(asm23_otot, 1),
-            "assem23_total": round(asm23_tot, 1),
+            # 2025 Assembly — same provenance note.
+            "assem25_d1":    round(asm25_d1, 1),  # Angelozzi
+            "assem25_d2":    round(asm25_d2, 1),  # Katz
+            "assem25_r1":    round(asm25_r1, 1),  # Torrissi
+            "assem25_r2":    round(asm25_r2, 1),  # Umba
+            "assem25_other": round(asm25_o_cand, 1),
+            "assem25_total": round(asm25_cand_total, 1),
+            "assem25_voters": round(asm25_voters, 1),
 
-            # 2027 baseline projections
+            # 2027 baseline = straight copy of the most-recent real cycle.
             "sen27_baseline_d":     round(sen27_d, 1),
             "sen27_baseline_r":     round(sen27_r, 1),
             "sen27_baseline_other": round(sen27_o, 1),
-            "sen27_baseline_total": round(sen27_tot, 1),
+            "sen27_baseline_total": round(sen27_total, 1),
 
-            "assem27_baseline_d1":    round(assem27_d1, 1),
-            "assem27_baseline_d2":    round(assem27_d2, 1),
-            "assem27_baseline_r1":    round(assem27_r1, 1),
-            "assem27_baseline_r2":    round(assem27_r2, 1),
-            "assem27_baseline_other": round(asm27_o, 1),
-            "assem27_baseline_total": round(asm27_tot, 1),
+            # Assembly baseline is stored in VOTER units (per-candidate
+            # counts derived at runtime from intra-party + bullet sliders).
+            "assem27_baseline_d":      round(asm27_d_voters, 1),
+            "assem27_baseline_r":      round(asm27_r_voters, 1),
+            "assem27_baseline_other":  round(asm27_o_voters, 1),
+            "assem27_baseline_voters": round(asm27_voters, 1),
 
-            # Mode splits, kept as nested for compactness
+            # Mode splits.
             "sen27_modes": {m: {k: round(v, 1) for k, v in d.items()}
                             for m, d in sen_modes.items()},
             "assem27_modes": {m: {k: round(v, 1) for k, v in d.items()}
@@ -365,11 +444,20 @@ def main() -> int:
 
             "mode_source": mode_source,
             "baseline_source": baseline_source,
+
+            # The historical intra-party splits and bullet rate the
+            # baseline was calibrated with; the app uses these as
+            # scenario defaults.
+            "calibration": {
+                "intra_d_d1": round(INTRA_D_D1 * 100, 2),
+                "intra_r_r1": round(INTRA_R_R1 * 100, 2),
+                "bullet_pct": round(ASM_BASELINE_BULLET * 100, 2),
+            },
         }
         features.append({
             "type": "Feature",
             "properties": props,
-            "geometry": shape_to_geojson(shrec.shape),
+            "geometry": shape_to_geojson(p["shape"]),
         })
 
     out = {"type": "FeatureCollection", "features": features}
@@ -377,16 +465,26 @@ def main() -> int:
     with open(OUT, "w", encoding="utf-8") as fh:
         json.dump(out, fh)
 
-    print(f"wrote {OUT}: {matched} precincts across "
+    print(f"\nwrote {OUT}: {len(features)} precincts across "
           f"{len(muni_counts)} municipalities", file=sys.stderr)
     for k in sorted(muni_counts):
         county, name = k
         print(f"  {county:10s} {muni_counts[k]:>3}  {name}", file=sys.stderr)
 
-    if matched == 0:
-        print("WARN: no precincts matched. Check LD8_MUNIS spellings "
-              "against the shapefile.", file=sys.stderr)
-        return 2
+    # Verification print
+    s_d = sum(f["properties"]["sen27_baseline_d"] for f in features)
+    s_r = sum(f["properties"]["sen27_baseline_r"] for f in features)
+    s_t = sum(f["properties"]["sen27_baseline_total"] for f in features)
+    a_d = sum(f["properties"]["assem27_baseline_d"] for f in features)
+    a_r = sum(f["properties"]["assem27_baseline_r"] for f in features)
+    a_v = sum(f["properties"]["assem27_baseline_voters"] for f in features)
+    print(f"\nCalibration check:", file=sys.stderr)
+    print(f"  Senate aggregate: D={s_d:.0f} R={s_r:.0f} total={s_t:.0f} "
+          f"(target {REAL_SEN23['d']} / {REAL_SEN23['r']} / {REAL_SEN23['total']})",
+          file=sys.stderr)
+    print(f"  Assembly aggregate (voters): D={a_d:.0f} R={a_r:.0f} voters={a_v:.0f} "
+          f"(target voters {REAL_ASM25_VOTERS:.0f})", file=sys.stderr)
+
     return 0
 
 

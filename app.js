@@ -7,12 +7,21 @@
   const MODE_FROM_URL = { ed: "ed", ev: "early", vbm: "vbm" };
   const SHARE_BOUNDS = { ed: [30, 80], ev: [0, 40], vbm: [0, 60] };
 
-  // Hypothetical candidate names — Senate and Assembly both pre-2027.
+  // Real incumbents (Senate '23, Assembly '25); placeholders for the
+  // open-ish 2027 slots (Senate D challenger, both R Assembly slots).
   const CAND = {
-    sen_d: "Adams (D)",   sen_r: "Bennett (R)",
-    asm_d1: "Carter (D)", asm_d2: "Daniels (D)",
-    asm_r1: "Edwards (R)", asm_r2: "Foster (R)",
+    sen_d:  "Democratic Senate Candidate",
+    sen_r:  "Latham Tiver (R)",
+    asm_d1: "Anthony Angelozzi (D)",   // top finisher in 2025
+    asm_d2: "Andrea Katz (D)",
+    asm_r1: "Republican Assembly Candidate 1",
+    asm_r2: "Republican Assembly Candidate 2",
   };
+
+  // Defaults are loaded from the GeoJSON's `calibration` block so they
+  // mirror the historical 2025 Assembly numbers. These are overwritten
+  // at fetch time; the values here are the seed before data arrives.
+  const DEFAULTS = { bullet: 5, intraD: 50.07, intraR: 51.08, coattail: 0 };
 
   // ===== State =====
   const state = {
@@ -23,14 +32,13 @@
     senSwing: { ed: 0, ev: 0, vbm: 0 },
     asmSwing: { ed: 0, ev: 0, vbm: 0 },
     cwShare:  { ed: 55, ev: 15, vbm: 30 },
-    bullet: 8,             // percent, default 8% (typical NJ Assembly bullet rate)
-    intraD: 52,            // D1's share of D ticket, %
-    intraR: 52,            // R1's share of R ticket, %
-    coattail: 0,           // 0..1
-    muniSwing: {},         // {muni: {sen:{ed,ev,vbm}, asm:{ed,ev,vbm}}}
+    bullet: DEFAULTS.bullet,    // percent
+    intraD: DEFAULTS.intraD,    // D1's share of D ticket, %
+    intraR: DEFAULTS.intraR,    // R1's share of R ticket, %
+    coattail: DEFAULTS.coattail,
+    muniSwing: {},              // {muni: {sen:{ed,ev,vbm}, asm:{ed,ev,vbm}}}
   };
   let defaultShare = { ed: 55, ev: 15, vbm: 30 };
-  const DEFAULTS = { bullet: 8, intraD: 52, intraR: 52, coattail: 0 };
   let municipalities = [];
 
   // ===== URL state =====
@@ -207,8 +215,19 @@
         defaultShare.ev  *= 100 / s;
         defaultShare.vbm *= 100 / s;
       }
+      // Load calibration defaults from the data (intra-party splits +
+      // bullet rate that the baseline was calibrated against).
+      const cal = (fc.features[0] || {}).properties && fc.features[0].properties.calibration;
+      if (cal) {
+        DEFAULTS.bullet = cal.bullet_pct;
+        DEFAULTS.intraD = cal.intra_d_d1;
+        DEFAULTS.intraR = cal.intra_r_r1;
+      }
       const params = new URLSearchParams(location.hash.slice(1));
       if (!params.get("sh")) state.cwShare = { ...defaultShare };
+      if (!params.get("b"))  state.bullet  = DEFAULTS.bullet;
+      if (!params.get("id")) state.intraD  = DEFAULTS.intraD;
+      if (!params.get("ir")) state.intraR  = DEFAULTS.intraR;
       parseMuniUrl();
 
       document.getElementById("precinct-count").textContent = fc.features.length;
@@ -283,30 +302,35 @@
   }
 
   // Assembly per-mode slice. Returns candidate-vote counts.
-  // Internally: voters_asm * (2 - bullet) = candidate-vote pool, allocated
-  // by ticket shares, then split by intra-party slider.
+  // Data convention (mirrors build_ld8.py):
+  //   baseMode.total  = voters in the mode (baseline)
+  //   baseMode.d/r/o  = candidate-vote counts in the mode (baseline,
+  //                     calibrated at the historical bullet rate)
+  // Ticket shares are stored as cand-vote ratios, so dShare =
+  // baseMode.d / (baseMode.d + baseMode.r + baseMode.o).
   function asmSlice(feat, modeKey) {
     const p = feat.properties;
     const baseMode = (p.assem27_modes || {})[modeKey] || { d: 0, r: 0, o: 0, total: 0 };
-    const voters = state.view === "scenario"
-      ? (p.assem27_baseline_total || 0) * shareForMode(modeKey)
-      : baseMode.total;
+    const baseCand = baseMode.d + baseMode.r + baseMode.o;
     let dShare, rShare, oShare;
-    if (baseMode.total > 0) {
-      dShare = baseMode.d / baseMode.total;
-      rShare = baseMode.r / baseMode.total;
-      oShare = baseMode.o / baseMode.total;
+    if (baseCand > 0) {
+      dShare = baseMode.d / baseCand;
+      rShare = baseMode.r / baseCand;
+      oShare = baseMode.o / baseCand;
     } else {
       dShare = rShare = oShare = 0;
     }
+    let voters;
     if (state.view === "scenario") {
-      const sh = applySwingShares(baseMode.d, baseMode.r, baseMode.o, baseMode.total,
+      voters = (p.assem27_baseline_voters || 0) * shareForMode(modeKey);
+      const sh = applySwingShares(dShare, rShare, oShare, 1,
                                   asmSwingForMode(p.municipality, modeKey));
       dShare = sh.d; rShare = sh.r; oShare = sh.o;
+    } else {
+      voters = baseMode.total;
     }
     const bullet = (state.view === "scenario" ? state.bullet : DEFAULTS.bullet) / 100;
-    const votesPerVoter = 2 - bullet;
-    const candVotes = voters * votesPerVoter;
+    const candVotes = voters * (2 - bullet);
     const intraD = (state.view === "scenario" ? state.intraD : DEFAULTS.intraD) / 100;
     const intraR = (state.view === "scenario" ? state.intraR : DEFAULTS.intraR) / 100;
     const dCand = dShare * candVotes;
@@ -433,11 +457,14 @@
   }
   function precinctSourceClass(feat, race) {
     if (state.view === "scenario") return "scenario";
-    return baseSource(feat, race);
+    const s = baseSource(feat, race);
+    if (s === "real-calibrated") return "calibrated";
+    return s;
   }
   function precinctSourceText(feat, race) {
     const base = baseSource(feat, race);
-    return state.view === "scenario" ? `scenario (based on ${base})` : base;
+    const display = base === "real-calibrated" ? "calibrated" : base;
+    return state.view === "scenario" ? `scenario (based on ${display})` : display;
   }
 
   // ===== Render =====
@@ -461,7 +488,8 @@
     let senFlips = [];   // precincts where Senate winner changes vs baseline
     let asmChanges = []; // precincts where Assembly outcome code changes
     let prec = 0;
-    let realSen = 0, realAsm = 0;
+    let realSen = 0, realAsm = 0;     // count of "real" precincts
+    let calibSen = 0, calibAsm = 0;   // count of "real-calibrated" precincts
 
     for (const f of geojson.features) {
       prec++;
@@ -494,8 +522,10 @@
       // Provenance
       const senSrc = baseSource(f, "sen");
       if (senSrc === "real") realSen++;
+      else if (senSrc === "real-calibrated") calibSen++;
       const asmSrc = baseSource(f, "asm");
       if (asmSrc === "real") realAsm++;
+      else if (asmSrc === "real-calibrated") calibAsm++;
     }
 
     // --- Senate render ---
@@ -514,7 +544,7 @@
     senBar.querySelector(".r").style.width = rp + "%";
     senBar.querySelector(".o").style.width = op + "%";
     document.getElementById("sen-totals-meta").textContent =
-      `${MODE_LABEL[state.mode]} · ${provenanceText("sen", realSen, prec)}`;
+      `${MODE_LABEL[state.mode]} · ${provenanceText("sen", realSen, calibSen, prec)}`;
 
     // --- Senate scenario deltas ---
     const senScen = document.getElementById("sen-totals-scenario");
@@ -567,7 +597,7 @@
       `<span class="label">Winners:</span> ${escapeHtml(winnerNames)}` +
       `<span class="ticket-margin">Ticket ${pct(ticketMarg)} · ~${fmt(asmH.voters)} voters · ${MODE_LABEL[state.mode]}</span>`;
     document.getElementById("asm-totals-meta").textContent =
-      `${MODE_LABEL[state.mode]} · ${provenanceText("asm", realAsm, prec)}`;
+      `${MODE_LABEL[state.mode]} · ${provenanceText("asm", realAsm, calibAsm, prec)}`;
 
     // --- Assembly scenario deltas ---
     const asmScen = document.getElementById("asm-totals-scenario");
@@ -601,10 +631,16 @@
   function candDisplayName(k) {
     return { d1: CAND.asm_d1, d2: CAND.asm_d2, r1: CAND.asm_r1, r2: CAND.asm_r2, o: "Other" }[k];
   }
-  function provenanceText(race, realCount, prec) {
-    const base = state.mode === "total"
-      ? (realCount === prec ? "real" : realCount === 0 ? "modeled" : `${realCount}/${prec} real`)
-      : (realCount === prec ? "real" : realCount === 0 ? "modeled" : `${realCount}/${prec} real`);
+  function provenanceText(race, realCount, calibCount, prec) {
+    // The district aggregate is exact (real-calibrated). Per-precinct
+    // distribution is interpolated from 2024 presidential. If specific
+    // precincts have certified per-precinct numbers via the overrides
+    // JSON, they are marked `real`.
+    let base;
+    if (realCount === prec) base = "real";
+    else if (realCount + calibCount === prec) base = "real district aggregate, modeled per-precinct";
+    else if (realCount === 0 && calibCount === 0) base = "modeled";
+    else base = `${realCount}/${prec} real, rest calibrated`;
     return state.view === "scenario" ? `scenario (based on ${base})` : base;
   }
 
@@ -722,36 +758,42 @@
     `;
   }
 
-  // ===== Mode-stat tags (per race we count "real" across all features,
-  // but display Senate count since the spec keeps a single per-mode tag) =====
+  // ===== Mode-stat tags =====
+  // Counts "real" precincts (per-precinct certified data) and falls
+  // back to "calibrated" when every precinct has a real district
+  // aggregate but a modeled spatial distribution.
   function renderModeStats() {
     const n = geojson.features.length;
     const totalTag = document.querySelector('[data-mode-stat="total"]');
     if (totalTag) {
-      let r = 0;
+      let real = 0, calib = 0;
       for (const f of geojson.features) {
         const bs = f.properties.baseline_source || {};
-        if (bs.sen === "real" && bs.asm === "real") r++;
+        const sen = bs.sen, asm = bs.asm;
+        if (sen === "real" && asm === "real") real++;
+        else if ((sen === "real" || sen === "real-calibrated") &&
+                 (asm === "real" || asm === "real-calibrated")) calib++;
       }
-      tagSet(totalTag, r, n);
+      tagSet(totalTag, real, calib, n);
     }
     for (const k of MODE_KEYS) {
       const tag = document.querySelector(`[data-mode-stat="${k}"]`);
       if (!tag) continue;
-      let r = 0;
+      let real = 0;
       for (const f of geojson.features) {
         const ms = f.properties.mode_source || {};
-        const sen = (ms.sen || {})[k] === "real";
-        const asm = (ms.asm || {})[k] === "real";
-        if (sen && asm) r++;
+        if ((ms.sen || {})[k] === "real" && (ms.asm || {})[k] === "real") real++;
       }
-      tagSet(tag, r, n);
+      // Mode breakdowns are always modeled unless overrides flip them.
+      tagSet(tag, real, 0, n);
     }
   }
-  function tagSet(tag, r, n) {
-    if (r === n)      { tag.textContent = "real";    tag.className = "tag real"; }
-    else if (r === 0) { tag.textContent = "modeled"; tag.className = "tag modeled"; }
-    else              { tag.textContent = `${Math.round(r/n*100)}% real`; tag.className = "tag partial"; }
+  function tagSet(tag, real, calib, n) {
+    if (real === n)             { tag.textContent = "real";       tag.className = "tag real"; }
+    else if (real + calib === n && calib > 0)
+                                { tag.textContent = "calibrated"; tag.className = "tag calibrated"; }
+    else if (real === 0)        { tag.textContent = "modeled";    tag.className = "tag modeled"; }
+    else                        { tag.textContent = `${Math.round(real/n*100)}% real`; tag.className = "tag partial"; }
   }
   function updateModeStatTagsForScenario() {
     if (state.view !== "scenario") { renderModeStats(); return; }
