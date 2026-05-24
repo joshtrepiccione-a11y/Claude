@@ -1,7 +1,7 @@
 # NJ Legislative District 8 — 2027 general (hypothetical) precinct map + scenario tool
 
-A single-page static site that renders the 121 precincts of NJ
-Legislative District 8 (2021 redistricting plan) for a hypothetical
+A single-page static site that renders all 149 precincts of NJ
+Legislative District 8 (post-2021 redistricting) for a hypothetical
 2027 general election. The 2027 ballot models the real LD8 ballot
 structure:
 
@@ -29,81 +29,91 @@ index.html
 app.js
 style.css
 data/
-  ld8_precincts.geojson           # 121 LD8 precincts (built artifact)
+  ld8_precincts.geojson           # 149 LD8 precincts (built artifact)
   ld8_real_baselines.json         # optional override: real precinct totals
 scripts/
-  build_ld8.py                    # filters the NJ24 shapefile → LD8 GeoJSON
+  build_ld8.py                    # filters NJ24 shapefile → LD8 GeoJSON
+.github/workflows/pages.yml       # auto-deploys to GitHub Pages on push
 ```
 
 ## Rebuilding the data file
 
 ```
-# Either let the script download the NJ24 shapefile into /tmp:
 python3 scripts/build_ld8.py --fetch
-# ...or pre-place it and just run:
-python3 scripts/build_ld8.py
 ```
 
-The script:
+The script downloads the 2024 NJ precincts shapefile compiled by
+@Twizzyu via
+[21MetcalfJ/2024Precincts](https://github.com/21MetcalfJ/2024Precincts),
+filters to the 25 LD8 municipalities, calibrates per-precinct
+projections to the certified 2023 Senate and 2025 Assembly district
+totals, and emits `data/ld8_precincts.geojson`.
 
-1. Downloads (or reads) the 2024 NJ precincts shapefile compiled by
-   @Twizzyu via
-   [21MetcalfJ/2024Precincts](https://github.com/21MetcalfJ/2024Precincts).
-2. Filters to LD8 precincts. Because every municipality in the 2021
-   LD8 map is wholly inside the district, we use the official
-   municipality allowlist as a proxy for the boundary (this is exact;
-   no split precincts need to be reassigned):
-   - **Atlantic**: Hammonton Town
-   - **Burlington**: Bass River, Eastampton, Evesham, Hainesport,
-     Lumberton, Medford, Medford Lakes, Pemberton Borough, Pemberton
-     Township, Shamong, Southampton, Springfield, Tabernacle,
-     Washington, Westampton, Woodland, Wrightstown
-3. Derives `municipality` by stripping precinct/ward suffixes from the
-   shapefile's `PrecName` field (Burlington uses verbose suffixes like
-   `... Election District: Ward 1 - District 2`; Atlantic uses bare
-   `... 01 02` digit runs).
-4. Synthesizes baseline numbers for 2021 Senate and 2023 Assembly per
-   precinct (see "Baseline projection method" below), then produces a
-   2027 baseline as a 60/40 weighted mix of the prior cycle and the
-   2024 presidential turnout.
-5. Splits each (race, baseline) into ED/EV/VBM using the statewide-mix
-   overlay (ED 55%, EV 15%, VBM 30%; partisan shifts ED −8 / EV +4 /
-   VBM +12). These splits are flagged as `modeled` in `mode_source`.
-6. If `data/ld8_real_baselines.json` is present, it is consulted for
-   per-precinct overrides — drop in real certified 2021/2023
-   precinct-level numbers and the script will mark `mode_source` /
-   `baseline_source` as `real` for those precincts. See the script for
-   the expected JSON shape.
+## LD8 composition (post-2021 redistricting)
+
+Every municipality in the LD8 map is wholly inside the district — no
+split precincts. The build script uses this 25-muni allowlist as the
+boundary:
+
+**Atlantic County (4):** Egg Harbor City, Folsom, Hammonton, Mullica
+
+**Burlington County (21):** Bass River, Chesterfield, Eastampton,
+Evesham, Hainesport, Lumberton, Mansfield, Medford, Medford Lakes,
+Mount Holly, New Hanover, Pemberton Borough, Pemberton Township,
+Shamong, Southampton, Springfield, Tabernacle, Washington, Westampton,
+Woodland, Wrightstown
 
 ## Baseline projection method
 
-Real, certified precinct-level data for the 2021 Senate and 2023
-Assembly races is not included by default. Instead we project each
-precinct's prior cycle from its 2024 presidential numbers, using the
-**district-level** certified margins as the shift constant:
+The 2027 baseline is a **straight copy of the most recent real cycle**
+for each race:
 
-| Race                | District margin (real) | Per-precinct shift vs presidential |
-|---------------------|------------------------|------------------------------------|
-| 2021 Senate         | ≈ R+5                  | −5.0 points                        |
-| 2023 Assembly ticket| ≈ R+11                 | −11.0 points                       |
+| Race           | Source race | Certified district totals                                                |
+|----------------|-------------|--------------------------------------------------------------------------|
+| 2027 Senate    | 2023 Senate | Tiver (R) **28,013** / Burton (D) **26,648** (R+2.5)                     |
+| 2027 Assembly  | 2025 Assembly | Angelozzi (D) **50,168** / Katz (D) **50,036** / Torrissi (R) **46,262** / Umba (R) **44,300** (D+5.1) |
 
-The per-precinct shift is applied uniformly: each precinct's
-presidential D-share moves toward R by 5 (Senate) or 11 (Assembly)
-points, with Other-party share preserved and the result renormalized
-and clamped (same half-shift logic as the Atlantic site). Turnout is
-scaled to typical off-year levels (42% of presidential for 2021, 39%
-for 2023).
+District aggregates match the certified totals **exactly**. Per-precinct
+distribution is interpolated as follows:
 
-The 2027 baseline is a weighted mix:
+1. Each precinct's 2024 presidential D/R/O shares give the spatial
+   pattern.
+2. A uniform district-wide additive shift is applied so the precinct
+   shares average back to the target D-share for the race (Senate
+   shift ≈ −1.62 pts vs presidential; Assembly shift ≈ +5.93 pts).
+3. Each precinct's turnout is scaled so the district sum hits the
+   certified total exactly (54,661 voters for Senate; 97,829 voters
+   for Assembly, implied from candidate-votes / (2 − bullet)).
+4. A final renormalization step nudges per-precinct totals so the
+   district sums match the targets to within rounding.
 
-```
-sen27_baseline   = 0.60 * sen21_projected   + 0.40 * pres24_real
-assem27_baseline = 0.60 * assem23_projected + 0.40 * pres24_real
-```
+Per-precinct mode breakdowns (ED/EV/VBM) are modeled by the same
+statewide-mix overlay used by the Atlantic site (ED 55% / EV 15% /
+VBM 30%; partisan shifts ED −8 / EV +4 / VBM +12).
 
-This blends the structural Republican lean of LD8 legislative races
-with the latest political environment. Every precinct-race baseline is
-flagged `modeled` until real numbers are supplied.
+To plug in **certified precinct-level** results and replace the
+interpolation, drop them into `data/ld8_real_baselines.json` keyed by
+precinct name; the script will flip the affected `mode_source` /
+`baseline_source` flags to `real`.
+
+## Candidates
+
+Senate incumbent Latham Tiver was elected in 2023 to a four-year term
+that runs through 2027, so the 2027 Senate slate is open on both
+sides. Both Assembly incumbents (Andrea Katz and Anthony Angelozzi)
+flipped LD8 to a 2-Democrat ticket in 2025. The 2027 slate models
+both incumbents seeking re-election:
+
+- **Senate**: *Democratic Senate Candidate* vs **Latham Tiver (R)**
+- **Assembly**: **Anthony Angelozzi (D)** + **Andrea Katz (D)** vs
+  *Republican Assembly Candidate 1* + *Republican Assembly Candidate 2*
+
+The Assembly intra-party defaults match the 2025 result: Angelozzi
+took 50.07% of the D ticket (D1 = top finisher), Torrissi took 51.08%
+of the R ticket. Bullet-vote rate default is 5%.
+
+Update the `CAND` object in `app.js` to swap in real Republican
+nominees once the 2027 slate is known.
 
 ## UI
 
@@ -123,18 +133,18 @@ Choropleth of LD8 precincts, colored by one of:
 
 ### Controls
 
-| Control            | Behavior                                                   |
-|--------------------|------------------------------------------------------------|
-| **View**           | `Baseline (projection)` or `Scenario`                      |
-| **Race focus**     | `Senate` / `Assembly` — emphasizes that race in the hover panel; map coloring is independent. |
-| **Vote mode**      | `Total` / `ED` / `EV` / `VBM`                              |
-| **Color by**       | one of the four metrics above                              |
-| **Senate D−R swing**   | per-mode ED/EV/VBM, −15 to +15 pts                     |
-| **Assembly D−R swing** | per-mode ED/EV/VBM, −15 to +15 pts                     |
-| **Turnout mix**    | ED/EV/VBM shares (coupled, sum to 100%)                   |
-| **Bullet-vote rate**| 0–30%, default **8%**. Share of Assembly voters who cast only one vote instead of two. Total Assembly candidate-votes = voters × (2 − b). |
-| **D ticket: D1 share** | 30–70%, default 52%. Splits D ticket between D1 and D2 candidates. |
-| **R ticket: R1 share** | 30–70%, default 52%. Same for R.                       |
+| Control                | Behavior                                                   |
+|------------------------|------------------------------------------------------------|
+| **View**               | `Baseline (projection)` or `Scenario`                      |
+| **Race focus**         | `Senate` / `Assembly` — emphasizes that race in the hover panel; map coloring is independent. |
+| **Vote mode**          | `Total` / `ED` / `EV` / `VBM`                              |
+| **Color by**           | one of the four metrics above                              |
+| **Senate D−R swing**   | per-mode ED/EV/VBM, −15 to +15 pts                         |
+| **Assembly D−R swing** | per-mode ED/EV/VBM, −15 to +15 pts                         |
+| **Turnout mix**        | ED/EV/VBM shares (coupled, sum to 100%)                    |
+| **Bullet-vote rate**   | 0–30%, default **5%** (2025 calibration).                  |
+| **D1 (Angelozzi) share** | 30–70%, default **50.07%** (2025 calibration).           |
+| **R1 share**           | 30–70%, default **51.08%** (2025 calibration).             |
 | **Sen→Asm coattail**   | 0.0–1.0, default 0.0. Fraction of the Senate swing added to the Assembly swing in each mode. |
 | **Per-municipality overrides** | 6 sliders per muni (Sen ED/EV/VBM, Asm ED/EV/VBM), −20 to +20 each, on top of district-wide. |
 
@@ -153,32 +163,29 @@ Two race blocks:
 ### Hover panel
 
 Both race blocks for the hovered precinct, with the race-focus block
-shown first. Each block carries a `real / modeled / scenario`
-provenance badge for the active mode. In scenario view, both blocks
-show vs-baseline deltas per candidate and an outcome-change line for
-Assembly.
+shown first. Each block carries a `real / calibrated / modeled /
+scenario` provenance badge for the active mode.
 
 ## Provenance
 
-Every (precinct, race, mode) tuple has a tri-state label:
+A four-state label per (precinct, race, mode) tuple:
 
-- **`real`** — baseline reuses certified prior-cycle votes verbatim
+- **`real`** — baseline reuses certified precinct-level votes verbatim
   (only when the override JSON supplies them).
-- **`modeled`** — 2027 projection from presidential + cycle shifts,
-  or a mode-overlay split.
-- **`scenario (based on real/modeled)`** — sliders are active; the
-  underlying source is preserved in parentheses.
-
-This shows up in three places:
-
-1. The Vote-mode panel's per-mode badge (district-wide aggregate).
-2. The hover panel's per-race badge.
-3. The District-totals panel's per-race meta line.
+- **`calibrated`** (a.k.a. `real-calibrated`) — the **district
+  aggregate** is real and matches the certified 2023 Senate or 2025
+  Assembly totals exactly; the **per-precinct distribution** is
+  interpolated from 2024 presidential. This is the default for
+  baseline totals.
+- **`modeled`** — used for mode breakdowns (ED/EV/VBM splits are
+  always modeled unless overrides supply real per-mode data).
+- **`scenario (based on …)`** — sliders are active; the underlying
+  source is preserved in parentheses.
 
 ## URL state
 
-The hash encodes the full scenario so a link reproduces an exact
-view. Recognized keys (defaults omitted):
+The hash encodes the full scenario so a link reproduces an exact view.
+Recognized keys (defaults omitted):
 
 | Key       | Meaning                                                       |
 |-----------|---------------------------------------------------------------|
@@ -201,26 +208,24 @@ view. Recognized keys (defaults omitted):
   (half-shift), with Other-party share preserved and the three shares
   renormalized after clamping negatives to 0.
 - **Assembly ticket D−R swing of X points** does the same on the
-  ticket-level shares (D1+D2 vs R1+R2 vs Other voters). Each party's
-  ticket voters are then split between its two candidates using the
-  intra-party slider (default 52/48).
+  ticket-level candidate-vote shares (D1+D2 vs R1+R2 vs Other). Each
+  party's ticket pool is then split between its two candidates using
+  the intra-party slider.
 - **Bullet voting**: with rate `b`, total Assembly candidate-votes =
-  voters × (2 − b). The per-party ticket share is applied to the
-  candidate-vote pool, then split intra-party.
+  voters × (2 − b). Default `b` is the 2025 historical rate (5%).
 - **Coattail c**: effective Assembly swing for a (muni, mode) =
   `cwAsm[mode] + muniAsm[mode] + c × (cwSen[mode] + muniSen[mode])`.
 
-## Hypothetical candidate names
+## Data sources
 
-The 2027 slates are unknown. The site uses generic placeholder
-surnames for clarity:
-
-- Senate: **Adams (D)** vs **Bennett (R)**
-- Assembly: **Carter (D)** / **Daniels (D)** vs **Edwards (R)** /
-  **Foster (R)**
-
-Replace them in `app.js` (`CAND` object) if you want to slot in real
-nominees once they're known.
+- Precinct geometries + 2024 presidential: NJ Precincts shapefile from
+  [21MetcalfJ/2024Precincts](https://github.com/21MetcalfJ/2024Precincts).
+- 2023 LD8 Senate certified totals: NJ Division of Elections.
+- 2025 LD8 Assembly certified totals: NJ Division of Elections.
+- LD8 post-2021 municipality list: NJ Apportionment Commission 2021
+  plan; corroborated by
+  [Wikipedia](https://en.wikipedia.org/wiki/New_Jersey%27s_8th_legislative_district)
+  and Ballotpedia.
 
 ## Out of scope (intentionally not built)
 
