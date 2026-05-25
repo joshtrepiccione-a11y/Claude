@@ -1,4 +1,25 @@
-# NJ Legislative District 8 — 2027 general (hypothetical) precinct map + scenario tool
+# NJ Legislative District 8
+
+This repo contains two generations of the LD8 election map / scenario tool:
+
+| Version | Path | Stack | Purpose |
+|---------|------|-------|---------|
+| **v2** (current) | `v2/` | React + TypeScript + Vite | Campaign intelligence dashboard — Scenario Summary, Path to Victory, Strategic Priority scoring, Ranked Precinct Table, Municipality Dashboard, CSV export, Candidate/Expert modes |
+| v1 (legacy) | `index.html`, `app.js`, `style.css` | Vanilla JS + Leaflet | Original precinct map + scenario sliders, preserved for reference |
+
+**v2 is the deployed production site.** Run it with:
+
+```
+cd v2 && npm install && npm run dev    # http://localhost:5173
+cd v2 && npm run build                  # production build → v2/dist
+cd v2 && npm test                       # vitest suite
+```
+
+See [`docs/v2-spec.md`](docs/v2-spec.md) for the v2 product spec.
+
+---
+
+## v1 (legacy)
 
 A single-page static site that renders all 149 precincts of NJ
 Legislative District 8 (post-2021 redistricting) for a hypothetical

@@ -28,15 +28,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "v2/package-lock.json"
+
+      - name: Build v2
+        run: |
+          cd v2
+          npm ci
+          npm run build
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Static site lives at repo root. The .github directory is
-          # filtered out automatically by upload-pages-artifact.
-          path: '.'
+          path: 'v2/dist'
 
       - name: Deploy to GitHub Pages
         id: deployment

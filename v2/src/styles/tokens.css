@@ -1,0 +1,34 @@
+:root {
+  --bg: #0e1116;
+  --panel: #161b22;
+  --panel-2: #1f2630;
+  --panel-3: #252d39;
+  --border: #2a313c;
+  --border-strong: #3d4754;
+  --text: #e6edf3;
+  --muted: #8b95a3;
+  --accent: #58a6ff;
+  --dem: #2c7ef8;
+  --rep: #d23f3f;
+  --oth: #9aa4b2;
+  --warn: #f0b86e;
+  --scenario: #b48cf2;
+  --calibrated: #6eddd0;
+  --safe-bg: #1f3b29;
+  --safe-fg: #6ee787;
+
+  /* Strategic priority (purple/yellow diverging, decoupled from R/B) */
+  --priority-low: #2a2d35;
+  --priority-mid: #6b5b95;
+  --priority-high: #f5c87a;
+
+  /* Assembly outcome colors */
+  --outcome-2d:    #2c7ef8;
+  --outcome-1d1rd: #6fa8f7;
+  --outcome-1d1rr: #e07a7a;
+  --outcome-2r:    #d23f3f;
+
+  /* Layout */
+  --header-h: 56px;
+  --kpi-h: 88px;
+}
