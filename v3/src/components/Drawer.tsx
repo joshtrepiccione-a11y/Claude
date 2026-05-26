@@ -2,6 +2,8 @@ import type { PrecinctRow } from "../lib/data/types";
 import { CANDIDATES } from "../lib/data/config";
 import { Card, Pill, fmtNumber, fmtMargin, fmtSigned } from "./UI";
 
+const C = (id: string) => CANDIDATES.find((c) => c.id === id);
+
 export function PrecinctDrawer({
   row,
   onClose,
@@ -21,6 +23,7 @@ export function PrecinctDrawer({
   }
   const p = row.baseline;
   const s = row.scenario;
+  const ss = row.senateScenario;
   return (
     <Card
       title={p.precinctName}
@@ -39,9 +42,11 @@ export function PrecinctDrawer({
         <div className="flex items-center gap-2 flex-wrap">
           <Pill tone="navy">{row.category}</Pill>
           <Pill tone="amber">{row.action}</Pill>
-          <Pill tone="slate">{p.baselineConfidence}</Pill>
+          <Pill tone="slate">Asm: {p.baselineConfidence}</Pill>
+          <Pill tone="slate">Sen: {p.senateBaselineConfidence}</Pill>
         </div>
 
+        <div className="text-xs uppercase tracking-wide text-slate-500">Assembly (two-seat slate)</div>
         <div className="grid grid-cols-2 gap-3">
           <Box label="Baseline margin" value={fmtMargin(row.baselineSlateMarginPct)} />
           <Box label="Scenario margin" value={fmtMargin(row.scenarioSlateMarginPct)} />
@@ -51,24 +56,44 @@ export function PrecinctDrawer({
           <Box label="Vote mode focus" value={modeLabel(row.voteModePriority)} />
         </div>
 
-        <div>
-          <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">
-            Baseline candidate votes
-          </div>
-          <CandidateRow label={CANDIDATES[0].label} v={p.demA} party="D" />
-          <CandidateRow label={CANDIDATES[1].label} v={p.demB} party="D" />
-          <CandidateRow label={CANDIDATES[2].label} v={p.repA} party="R" />
-          <CandidateRow label={CANDIDATES[3].label} v={p.repB} party="R" />
+        <div className="text-xs uppercase tracking-wide text-slate-500">Senate (single-seat)</div>
+        <div className="grid grid-cols-2 gap-3">
+          <Box label="Baseline margin" value={fmtMargin(row.senateBaselineMarginPct)} />
+          <Box label="Scenario margin" value={fmtMargin(row.senateScenarioMarginPct)} />
+          <Box label="Baseline turnout" value={fmtNumber(p.senTurnout)} />
+          <Box label="Scenario turnout" value={fmtNumber(ss.turnout)} />
+          <Box label="Net D vote swing" value={fmtSigned(row.senateNetVoteSwingD)} />
+          <Box label="Combined net opp." value={fmtSigned(row.netVoteOpportunity)} />
         </div>
 
         <div>
           <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">
-            Scenario candidate votes
+            Baseline candidate votes (Assembly)
           </div>
-          <CandidateRow label={CANDIDATES[0].label} v={s.demA} party="D" />
-          <CandidateRow label={CANDIDATES[1].label} v={s.demB} party="D" />
-          <CandidateRow label={CANDIDATES[2].label} v={s.repA} party="R" />
-          <CandidateRow label={CANDIDATES[3].label} v={s.repB} party="R" />
+          <CandidateRow label={C("dA")!.label} v={p.demA} party="D" />
+          <CandidateRow label={C("dB")!.label} v={p.demB} party="D" />
+          <CandidateRow label={C("rA")!.label} v={p.repA} party="R" />
+          <CandidateRow label={C("rB")!.label} v={p.repB} party="R" />
+        </div>
+
+        <div>
+          <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">
+            Scenario candidate votes (Assembly)
+          </div>
+          <CandidateRow label={C("dA")!.label} v={s.demA} party="D" />
+          <CandidateRow label={C("dB")!.label} v={s.demB} party="D" />
+          <CandidateRow label={C("rA")!.label} v={s.repA} party="R" />
+          <CandidateRow label={C("rB")!.label} v={s.repB} party="R" />
+        </div>
+
+        <div>
+          <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">
+            Senate candidate votes
+          </div>
+          <CandidateRow label={C("senD")!.label} v={p.senD} party="D" />
+          <CandidateRow label={C("senR")!.label} v={p.senR} party="R" />
+          <CandidateRow label={`${C("senD")!.label} (scenario)`} v={ss.d} party="D" />
+          <CandidateRow label={`${C("senR")!.label} (scenario)`} v={ss.r} party="R" />
         </div>
 
         <div>

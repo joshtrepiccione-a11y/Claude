@@ -1,41 +1,57 @@
 // Scenario engine: applies a ScenarioAssumptions object to the precinct
-// baselines and returns scenario projections + district rollup + per-precinct
-// rows used by the UI.
+// baselines and returns scenario projections for the Assembly two-vote
+// slate race AND the Senate single-seat race, plus a combined ticket
+// rollup (0..3 D / 0..3 R seats).
 //
-// Assumption philosophy:
-//  * `turnoutDelta` scales total ballots (per precinct and per mode share).
-//  * `demSlateSwing` / `repSlateSwing` are percentage-point shifts on the
-//    share of the *slate vote* (i.e. on the two-vote total). A +2pt D swing
-//    means the Democratic slate's share of slate votes rises by 2 points and
-//    the Republican slate's share falls by the same amount (other held fixed).
-//  * `candidateA/Bahdjustment` shifts votes between A and B within each party
-//    in a precinct, preserving the slate sum.
-//  * `bulletVoteRate` reduces total slate votes — a bullet-voted ballot
-//    contributes one vote instead of two. This affects margins by reducing
-//    the leading party's slate total more than the trailing party's.
-//  * `splitTicketRate` redistributes within ballots: a fraction of would-be
-//    D voters cast for one D and one R, etc. Net effect: gentle compression
-//    of slate margin and inflation of cross-party variance.
-//  * mode-specific margin swings layer on top of the slate swing for the
-//    relevant share of ballots.
+// Assumption philosophy (covers both races unless noted):
+//  * `turnoutDelta` scales total ballots per precinct (per mode share).
+//    Applied to both Senate and Assembly turnout uniformly — a campaign
+//    program lifting turnout lifts both races' ballot counts together.
+//  * `asmDemSwing` / `asmRepSwing` are pp shifts on Assembly slate share.
+//  * `senDemSwing` / `senRepSwing` are pp shifts on Senate share.
+//    (Split because the two races have different candidates and different
+//    drop-off dynamics; a popular Senate candidate doesn't necessarily move
+//    the Assembly slate by the same amount.)
+//  * `candidateAAdjustment` / `candidateBAdjustment` shift votes between A
+//    and B within each Assembly party slate (preserving the slate sum).
+//    Senate is single-seat so these don't apply there.
+//  * `bulletVoteRate` reduces total Assembly slate votes — a bullet-voted
+//    ballot contributes one vote instead of two. Senate is unaffected
+//    because every voter casts at most one Senate vote anyway.
 //
-// These are deliberately simple, deterministic, and reviewable. They are NOT
-// a prediction — they are a model the campaign can use to pressure-test
-// assumptions and compare paths.
+//    Limitation: the current implementation applies the bullet penalty
+//    symmetrically across both parties. In practice bullet voting tends
+//    to disproportionately suppress the trailing candidate of the leading
+//    party. This is flagged in the realism scoring and the memo.
+//
+//  * `splitTicketRate` redistributes within Assembly ballots only — a
+//    fraction of D voters' second vote goes to R and vice-versa. It does
+//    NOT affect Senate (no "second vote" exists in a single-seat race).
+//  * mode-specific margin swings (vbm/early/ed) are SHARED across races —
+//    a stronger VBM program shifts both Senate and Assembly D-share in the
+//    VBM mode by the same amount.
+//
+// These are deliberately simple, deterministic, and reviewable. They are
+// NOT a prediction.
 
 import type {
+  AssemblyTotals,
   CandidateFinisher,
   DistrictResult,
   ModeBreakdown,
+  Party,
   PrecinctBaseline,
   PrecinctRow,
-  PrecinctScenario,
+  PrecinctScenarioAssembly,
+  PrecinctScenarioSenate,
   ScenarioAssumptions,
-  SlateTotals,
+  SenateTotals,
 } from "../data/types";
 import { THRESHOLDS } from "../data/config";
 import {
-  blankSlateTotals,
+  blankAssemblyTotals,
+  blankSenateTotals,
+  calculateBaselineSenateResult,
   calculateBaselineSlateResult,
   emptyModeBreakdown,
 } from "./baseline";
@@ -43,8 +59,10 @@ import {
 export function defaultAssumptions(): ScenarioAssumptions {
   return {
     turnoutDelta: 0,
-    demSlateSwing: 0,
-    repSlateSwing: 0,
+    asmDemSwing: 0,
+    asmRepSwing: 0,
+    senDemSwing: 0,
+    senRepSwing: 0,
     candidateAAdjustment: 0,
     candidateBAdjustment: 0,
     bulletVoteRate: 0,
@@ -60,133 +78,148 @@ export function defaultAssumptions(): ScenarioAssumptions {
   };
 }
 
-export function calculateScenarioPrecinct(
+// ─────────────────────────────────────────────────────────────────────
+// Per-precinct: Assembly scenario
+// ─────────────────────────────────────────────────────────────────────
+
+function computeModeMix(
+  base: ModeBreakdown,
+  a: ScenarioAssumptions,
+): { mix: ModeBreakdown; turnout: number } {
+  // 1. Apply turnout delta uniformly across modes.
+  const scaled: ModeBreakdown = {
+    ed: base.ed * (1 + a.turnoutDelta),
+    early: base.early * (1 + a.turnoutDelta),
+    vbm: base.vbm * (1 + a.turnoutDelta),
+  };
+  // 2. Optional mode-share override (user supplied a target mix).
+  const shareSum = a.vbmShare + a.earlyShare + a.edShare;
+  const total = scaled.ed + scaled.early + scaled.vbm;
+  if (shareSum > 0 && total > 0) {
+    scaled.ed = total * (a.edShare / shareSum);
+    scaled.early = total * (a.earlyShare / shareSum);
+    scaled.vbm = total * (a.vbmShare / shareSum);
+  }
+  const turnout = scaled.ed + scaled.early + scaled.vbm;
+  return { mix: scaled, turnout };
+}
+
+function modeWeightedSwingPP(
+  mix: ModeBreakdown,
+  a: ScenarioAssumptions,
+): number {
+  const total = mix.ed + mix.early + mix.vbm;
+  if (total === 0) return 0;
+  return (
+    (mix.ed / total) * a.edMarginSwing +
+    (mix.early / total) * a.earlyMarginSwing +
+    (mix.vbm / total) * a.vbmMarginSwing
+  );
+}
+
+export function calculateScenarioPrecinctAssembly(
   p: PrecinctBaseline,
   a: ScenarioAssumptions,
-): PrecinctScenario {
-  // 1. Apply turnout delta uniformly across modes.
-  const turnoutScale = 1 + a.turnoutDelta;
-  const modeTurnout: ModeBreakdown = {
-    ed: p.modeTurnout.ed * turnoutScale,
-    early: p.modeTurnout.early * turnoutScale,
-    vbm: p.modeTurnout.vbm * turnoutScale,
-  };
+): PrecinctScenarioAssembly {
+  const { mix: modeTurnout, turnout } = computeModeMix(p.modeTurnout, a);
 
-  // If user explicitly overrode mode shares, redistribute the new turnout.
-  const total = modeTurnout.ed + modeTurnout.early + modeTurnout.vbm;
-  if (a.vbmShare + a.earlyShare + a.edShare > 0 && total > 0) {
-    const normSum = a.vbmShare + a.earlyShare + a.edShare;
-    modeTurnout.ed = total * (a.edShare / normSum);
-    modeTurnout.early = total * (a.earlyShare / normSum);
-    modeTurnout.vbm = total * (a.vbmShare / normSum);
-  }
-  const turnout = modeTurnout.ed + modeTurnout.early + modeTurnout.vbm;
-
-  // 2. Compute scenario slate-share shift for this precinct.
-  // demSlateSwing/repSlateSwing are percentage-point shifts on slate share.
   // Override stack: districtwide swing + muni override + precinct override.
   const muniOverride = a.municipalityOverrides[p.municipality] || 0;
   const precinctOverride = a.precinctOverrides[p.precinctId] || 0;
-  const dSwingPP =
-    a.demSlateSwing - a.repSlateSwing + muniOverride + precinctOverride;
+  const slateSwingPP =
+    a.asmDemSwing - a.asmRepSwing + muniOverride + precinctOverride;
 
-  // 3. Baseline mode shares of slate vote.
+  // Baseline mode shares of slate vote.
   const baseSlate = p.demA + p.demB + p.repA + p.repB + p.other;
   const baseDemSlate = p.demA + p.demB;
   const baseRepSlate = p.repA + p.repB;
   const baseDemShare = baseSlate === 0 ? 0 : baseDemSlate / baseSlate;
   const baseOtherShare = baseSlate === 0 ? 0 : p.other / baseSlate;
 
-  // 4. Apply mode-specific margin swings (pp into D share, from R).
-  const modeSwings = {
-    ed: a.edMarginSwing,
-    early: a.earlyMarginSwing,
-    vbm: a.vbmMarginSwing,
-  };
-  const modeShares = {
-    ed: turnout === 0 ? 0 : modeTurnout.ed / turnout,
-    early: turnout === 0 ? 0 : modeTurnout.early / turnout,
-    vbm: turnout === 0 ? 0 : modeTurnout.vbm / turnout,
-  };
-  const modeWeightedSwingPP =
-    modeShares.ed * modeSwings.ed +
-    modeShares.early * modeSwings.early +
-    modeShares.vbm * modeSwings.vbm;
-
-  // 5. New slate shares (clamped to [0,1]).
-  const totalDemSwingShare = (dSwingPP + modeWeightedSwingPP) / 100;
+  const modeSwingPP = modeWeightedSwingPP(modeTurnout, a);
+  const totalDemSwingShare = (slateSwingPP + modeSwingPP) / 100;
   const newDemShare = clamp(baseDemShare + totalDemSwingShare, 0, 1 - baseOtherShare);
   const newRepShare = Math.max(0, 1 - newDemShare - baseOtherShare);
 
-  // 6. Apply bullet vote and split-ticket adjustments (small multiplicative
-  // tweaks on slate totals).
-  // Bullet vote: trims roughly half the second vote from the bullet-voted
-  // fraction of ballots. We apply it symmetrically; if the user wants
-  // asymmetric effects they should use candidate adjustments.
+  // Bullet vote: 0.25 multiplier means a bullet-voted ballot drops half of
+  // the second slate vote (rough empirical calibration). See module comment
+  // for the symmetry-limitation caveat.
   const bulletPenalty = 1 - 0.25 * a.bulletVoteRate;
-  // Split-ticket compresses margins toward zero: a fraction `s` of D voters'
-  // second vote goes to R and vice-versa. This is approximated by mixing
-  // the two slates by s/2.
+
+  // Split ticket compresses margins toward zero.
   const split = a.splitTicketRate;
-  const mixedDemShare =
-    newDemShare * (1 - split / 2) + newRepShare * (split / 2);
-  const mixedRepShare =
-    newRepShare * (1 - split / 2) + newDemShare * (split / 2);
+  const mixedDemShare = newDemShare * (1 - split / 2) + newRepShare * (split / 2);
+  const mixedRepShare = newRepShare * (1 - split / 2) + newDemShare * (split / 2);
 
   const slateVotesTarget = turnout * 2 * bulletPenalty; // two-vote slate total
   const demSlate = slateVotesTarget * mixedDemShare;
   const repSlate = slateVotesTarget * mixedRepShare;
 
-  // 7. Distribute slate totals onto A/B candidates.
-  // Preserve baseline A/B share within each party, then apply A/B adjustments.
+  // Distribute onto A/B candidates within each party. Preserve baseline
+  // A/B share, then layer A and B adjustments.
   const baseDA = baseDemSlate === 0 ? 0.5 : p.demA / baseDemSlate;
-  const baseDBshare = 1 - baseDA;
   const baseRA = baseRepSlate === 0 ? 0.5 : p.repA / baseRepSlate;
-  const baseRBshare = 1 - baseRA;
 
-  const dAshare = clamp(baseDA + a.candidateAAdjustment / 100, 0.05, 0.95);
-  const dBshareNew = 1 - dAshare;
-  const rAshare = clamp(baseRA + a.candidateAAdjustment / 100, 0.05, 0.95);
-  const rBshareNew = 1 - rAshare;
+  // candidateAAdjustment lifts A in BOTH parties; candidateBAdjustment lifts B.
+  // (Net effect on slate = 0; only changes within-slate split.)
+  const dAshareInit = clamp(baseDA + a.candidateAAdjustment / 100, 0.05, 0.95);
+  const rAshareInit = clamp(baseRA + a.candidateAAdjustment / 100, 0.05, 0.95);
+  const dBfinalShare = clamp((1 - dAshareInit) + a.candidateBAdjustment / 100, 0.05, 0.95);
+  const dAfinalShare = 1 - dBfinalShare;
+  const rBfinalShare = clamp((1 - rAshareInit) + a.candidateBAdjustment / 100, 0.05, 0.95);
+  const rAfinalShare = 1 - rBfinalShare;
 
-  // (B-adjustment shifts within both parties symmetrically, but in the
-  // opposite direction so A and B don't double-apply.)
-  const dBshare = clamp(dBshareNew + a.candidateBAdjustment / 100, 0.05, 0.95);
-  const dAfinal = 1 - dBshare;
-  const rBshare = clamp(rBshareNew + a.candidateBAdjustment / 100, 0.05, 0.95);
-  const rAfinal = 1 - rBshare;
+  const demA = demSlate * dAfinalShare;
+  const demB = demSlate * dBfinalShare;
+  const repA = repSlate * rAfinalShare;
+  const repB = repSlate * rBfinalShare;
 
-  const demA = demSlate * dAfinal;
-  const demB = demSlate * dBshare;
-  const repA = repSlate * rAfinal;
-  const repB = repSlate * rBshare;
-
-  // Mode-broken slate totals (scaled to the new totals).
   const modeDemSlate = scaleModes(p.modeDemSlate, demSlate, baseDemSlate);
   const modeRepSlate = scaleModes(p.modeRepSlate, repSlate, baseRepSlate);
-  // Suppress unused warnings on baseDBshare / baseRBshare (kept for readability above).
-  void baseDBshare;
-  void baseRBshare;
 
   return {
-    demA,
-    demB,
-    repA,
-    repB,
-    turnout,
-    modeTurnout,
-    demSlate,
-    repSlate,
-    modeDemSlate,
-    modeRepSlate,
+    demA, demB, repA, repB,
+    turnout, modeTurnout,
+    demSlate, repSlate,
+    modeDemSlate, modeRepSlate,
   };
 }
 
-function scaleModes(
-  base: ModeBreakdown,
-  newTotal: number,
-  oldTotal: number,
-): ModeBreakdown {
+// ─────────────────────────────────────────────────────────────────────
+// Per-precinct: Senate scenario
+// ─────────────────────────────────────────────────────────────────────
+
+export function calculateScenarioPrecinctSenate(
+  p: PrecinctBaseline,
+  a: ScenarioAssumptions,
+): PrecinctScenarioSenate {
+  const { mix: modeTurnout, turnout } = computeModeMix(p.senModeTurnout, a);
+
+  const muniOverride = a.municipalityOverrides[p.municipality] || 0;
+  const precinctOverride = a.precinctOverrides[p.precinctId] || 0;
+  const senSwingPP =
+    a.senDemSwing - a.senRepSwing + muniOverride + precinctOverride;
+
+  const baseTotal = p.senD + p.senR + p.senOther;
+  const baseDemShare = baseTotal === 0 ? 0 : p.senD / baseTotal;
+  const baseOtherShare = baseTotal === 0 ? 0 : p.senOther / baseTotal;
+
+  const modeSwingPP = modeWeightedSwingPP(modeTurnout, a);
+  const totalDemSwingShare = (senSwingPP + modeSwingPP) / 100;
+  const newDemShare = clamp(baseDemShare + totalDemSwingShare, 0, 1 - baseOtherShare);
+  const newRepShare = Math.max(0, 1 - newDemShare - baseOtherShare);
+
+  const d = turnout * newDemShare;
+  const r = turnout * newRepShare;
+  const other = turnout * baseOtherShare;
+
+  const modeDem = scaleModes(p.senModeDem, d, p.senD);
+  const modeRep = scaleModes(p.senModeRep, r, p.senR);
+
+  return { d, r, other, turnout, modeTurnout, modeDem, modeRep };
+}
+
+function scaleModes(base: ModeBreakdown, newTotal: number, oldTotal: number): ModeBreakdown {
   if (oldTotal === 0) {
     return { ed: newTotal / 3, early: newTotal / 3, vbm: newTotal / 3 };
   }
@@ -198,42 +231,59 @@ function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));
 }
 
-/** Apply scenario across all precincts; return per-precinct rows. */
+// ─────────────────────────────────────────────────────────────────────
+// District rollup
+// ─────────────────────────────────────────────────────────────────────
+
 export function calculateScenarioResult(
   precincts: PrecinctBaseline[],
-  assumptions: ScenarioAssumptions,
+  a: ScenarioAssumptions,
 ): { rows: PrecinctRow[]; district: DistrictResult } {
   const rows: PrecinctRow[] = [];
-  const baselineDistrict = calculateBaselineSlateResult(precincts);
-  const scenarioTotals: SlateTotals = blankSlateTotals();
+
+  const baselineAsm = calculateBaselineSlateResult(precincts);
+  const baselineSen = calculateBaselineSenateResult(precincts);
+
+  const asmTotals = blankAssemblyTotals();
+  const senTotals = blankSenateTotals();
 
   for (const p of precincts) {
-    const sc = calculateScenarioPrecinct(p, assumptions);
-    const baseTotal = p.demA + p.demB + p.repA + p.repB + p.other;
-    const scTotal = sc.demA + sc.demB + sc.repA + sc.repB;
+    const scAsm = calculateScenarioPrecinctAssembly(p, a);
+    const scSen = calculateScenarioPrecinctSenate(p, a);
 
-    const baselineMarginPct =
-      baseTotal === 0 ? 0 : ((p.demA + p.demB - p.repA - p.repB) / baseTotal) * 100;
-    const scenarioMarginPct =
-      scTotal === 0 ? 0 : ((sc.demSlate - sc.repSlate) / scTotal) * 100;
+    // Assembly per-precinct margins.
+    const baseAsmTotal = p.demA + p.demB + p.repA + p.repB + p.other;
+    const scAsmTotal = scAsm.demA + scAsm.demB + scAsm.repA + scAsm.repB;
+    const baseAsmMarginPct =
+      baseAsmTotal === 0 ? 0 : ((p.demA + p.demB - p.repA - p.repB) / baseAsmTotal) * 100;
+    const scAsmMarginPct =
+      scAsmTotal === 0 ? 0 : ((scAsm.demSlate - scAsm.repSlate) / scAsmTotal) * 100;
+    const asmNetSwingD =
+      (scAsm.demSlate - scAsm.repSlate) - (p.demA + p.demB - (p.repA + p.repB));
 
-    const baseDnet = p.demA + p.demB - (p.repA + p.repB);
-    const scDnet = sc.demSlate - sc.repSlate;
-    const netVoteSwingD = scDnet - baseDnet;
+    // Senate per-precinct margins.
+    const baseSenTotal = p.senD + p.senR + p.senOther;
+    const scSenTotal = scSen.d + scSen.r + scSen.other;
+    const baseSenMarginPct =
+      baseSenTotal === 0 ? 0 : ((p.senD - p.senR) / baseSenTotal) * 100;
+    const scSenMarginPct =
+      scSenTotal === 0 ? 0 : ((scSen.d - scSen.r) / scSenTotal) * 100;
+    const senNetSwingD = (scSen.d - scSen.r) - (p.senD - p.senR);
 
-    // Scoring (0..100) — used for the Targets tab.
-    const competitiveness = 100 - Math.min(100, Math.abs(baselineMarginPct) * 4);
+    // Net Democratic vote opportunity = Senate + Assembly swing together,
+    // since a campaign program that moves one mode tends to lift both races.
+    const netVoteOpportunity = asmNetSwingD + senNetSwingD;
+
+    // Component scores for the Targets tab.
+    const competitiveness = 100 - Math.min(100, Math.abs(baseAsmMarginPct) * 4);
     const persuasionScore = clamp(
-      competitiveness *
-        (1 - Math.abs(baselineMarginPct) / THRESHOLDS.persuasionMaxMarginPct),
-      0,
-      100,
+      competitiveness * (1 - Math.abs(baseAsmMarginPct) / THRESHOLDS.persuasionMaxMarginPct),
+      0, 100,
     );
     const turnoutScore = clamp(
       (p.baselineTurnout > 0 ? Math.log10(p.baselineTurnout) * 25 : 0) *
-        (baselineMarginPct >= 0 ? 1 : 0.4),
-      0,
-      100,
+        (baseAsmMarginPct >= 0 ? 1 : 0.4),
+      0, 100,
     );
     const baseTotalMode = p.modeTurnout.ed + p.modeTurnout.early + p.modeTurnout.vbm;
     const vbmShare = baseTotalMode === 0 ? 0 : p.modeTurnout.vbm / baseTotalMode;
@@ -243,17 +293,14 @@ export function calculateScenarioResult(
     const earlyScore = clamp(earlyShare * 140 + competitiveness * 0.3, 0, 100);
     const edScore = clamp(edShare * 100 + competitiveness * 0.5, 0, 100);
 
-    // Pick vote-mode priority: largest of the three scores.
     const modeScores: Array<["vbm" | "early" | "ed", number]> = [
-      ["vbm", vbmScore],
-      ["early", earlyScore],
-      ["ed", edScore],
+      ["vbm", vbmScore], ["early", earlyScore], ["ed", edScore],
     ];
-    modeScores.sort((a, b) => b[1] - a[1]);
+    modeScores.sort((x, y) => y[1] - x[1]);
     const voteModePriority = modeScores[0][0];
 
-    // Strategic category.
-    const m = baselineMarginPct;
+    // Strategic category (driven by Assembly margin, since that's the slate race).
+    const m = baseAsmMarginPct;
     let category: PrecinctRow["category"];
     if (m >= THRESHOLDS.marginSafe) category = "Base Expansion";
     else if (m >= THRESHOLDS.marginLean) category = "Defensive Hold";
@@ -262,7 +309,6 @@ export function calculateScenarioResult(
     else if (m <= -THRESHOLDS.marginSafe) category = "Opposition Stronghold";
     else category = "Low Priority";
 
-    // Recommended action.
     let action: PrecinctRow["action"];
     if (category === "Base Expansion") action = "Volunteer Recruitment";
     else if (category === "Defensive Hold") action = "VBM Ballot Chase";
@@ -273,14 +319,18 @@ export function calculateScenarioResult(
 
     rows.push({
       baseline: p,
-      scenario: sc,
-      netVoteSwingD,
-      baselineSlateMarginPct: baselineMarginPct,
-      scenarioSlateMarginPct: scenarioMarginPct,
+      scenario: scAsm,
+      senateScenario: scSen,
+      netVoteSwingD: asmNetSwingD,
+      baselineSlateMarginPct: baseAsmMarginPct,
+      scenarioSlateMarginPct: scAsmMarginPct,
+      senateBaselineMarginPct: baseSenMarginPct,
+      senateScenarioMarginPct: scSenMarginPct,
+      senateNetVoteSwingD: senNetSwingD,
       category,
       action,
       voteModePriority,
-      netVoteOpportunity: netVoteSwingD,
+      netVoteOpportunity,
       persuasionScore,
       turnoutScore,
       vbmScore,
@@ -288,78 +338,111 @@ export function calculateScenarioResult(
       edScore,
     });
 
-    scenarioTotals.dA += sc.demA;
-    scenarioTotals.dB += sc.demB;
-    scenarioTotals.rA += sc.repA;
-    scenarioTotals.rB += sc.repB;
-    scenarioTotals.other += p.other; // other held constant
-    scenarioTotals.totalBallots += sc.turnout;
-    scenarioTotals.modeDemSlate.ed += sc.modeDemSlate.ed;
-    scenarioTotals.modeDemSlate.early += sc.modeDemSlate.early;
-    scenarioTotals.modeDemSlate.vbm += sc.modeDemSlate.vbm;
-    scenarioTotals.modeRepSlate.ed += sc.modeRepSlate.ed;
-    scenarioTotals.modeRepSlate.early += sc.modeRepSlate.early;
-    scenarioTotals.modeRepSlate.vbm += sc.modeRepSlate.vbm;
-    scenarioTotals.modeTurnout.ed += sc.modeTurnout.ed;
-    scenarioTotals.modeTurnout.early += sc.modeTurnout.early;
-    scenarioTotals.modeTurnout.vbm += sc.modeTurnout.vbm;
+    // Assembly district totals.
+    asmTotals.dA += scAsm.demA; asmTotals.dB += scAsm.demB;
+    asmTotals.rA += scAsm.repA; asmTotals.rB += scAsm.repB;
+    // "Other" is held constant — it has no scenario-side dynamic in V3.
+    // See module comment.
+    asmTotals.other += p.other;
+    asmTotals.totalBallots += scAsm.turnout;
+    accModeAsm(asmTotals.modeDemSlate, scAsm.modeDemSlate);
+    accModeAsm(asmTotals.modeRepSlate, scAsm.modeRepSlate);
+    accModeAsm(asmTotals.modeTurnout, scAsm.modeTurnout);
+
+    // Senate district totals.
+    senTotals.d += scSen.d; senTotals.r += scSen.r;
+    senTotals.other += p.senOther; // held constant for the same reason
+    senTotals.totalBallots += scSen.turnout;
+    accModeAsm(senTotals.modeDem, scSen.modeDem);
+    accModeAsm(senTotals.modeRep, scSen.modeRep);
+    accModeAsm(senTotals.modeTurnout, scSen.modeTurnout);
   }
 
-  scenarioTotals.demSlate = scenarioTotals.dA + scenarioTotals.dB;
-  scenarioTotals.repSlate = scenarioTotals.rA + scenarioTotals.rB;
-  scenarioTotals.totalSlateVotes =
-    scenarioTotals.demSlate + scenarioTotals.repSlate + scenarioTotals.other;
-  scenarioTotals.slateMarginVotes =
-    scenarioTotals.demSlate - scenarioTotals.repSlate;
-  scenarioTotals.slateMarginPct =
-    scenarioTotals.totalSlateVotes === 0
-      ? 0
-      : (scenarioTotals.slateMarginVotes / scenarioTotals.totalSlateVotes) * 100;
+  finalizeAsm(asmTotals);
+  finalizeSen(senTotals);
 
-  const finishers = computeFinishers(scenarioTotals);
+  const finishers = computeFinishers(asmTotals);
   const secondSeatMargin = finishers[1].votes - finishers[2].votes;
-  const seats = {
+  const asmSeats = {
     D: finishers.filter((f) => f.seated && f.party === "D").length,
     R: finishers.filter((f) => f.seated && f.party === "R").length,
   };
 
-  // Votes needed (D-perspective): how many votes to lift the higher of the two
-  // D candidates past the second-place R candidate (or the lower D past the
-  // lower R for "elect both"). All measured in the D candidate's own vote total.
-  const dVotes = [
-    { id: "dA" as const, v: scenarioTotals.dA },
-    { id: "dB" as const, v: scenarioTotals.dB },
-  ].sort((a, b) => b.v - a.v);
-  const rVotes = [
-    { id: "rA" as const, v: scenarioTotals.rA },
-    { id: "rB" as const, v: scenarioTotals.rB },
-  ].sort((a, b) => b.v - a.v);
+  // Assembly: elect-one / elect-both gaps.
+  const dCandsSorted = [
+    { id: "dA" as const, v: asmTotals.dA },
+    { id: "dB" as const, v: asmTotals.dB },
+  ].sort((x, y) => y.v - x.v);
+  const rCandsSorted = [
+    { id: "rA" as const, v: asmTotals.rA },
+    { id: "rB" as const, v: asmTotals.rB },
+  ].sort((x, y) => y.v - x.v);
+  const votesNeededToElectOne = Math.max(0, Math.ceil(rCandsSorted[0].v - dCandsSorted[0].v + 1));
+  const votesNeededToElectBoth = Math.max(0, Math.ceil(rCandsSorted[1].v - dCandsSorted[1].v + 1));
 
-  // To elect ONE: the higher D must beat the higher R.
-  const electOneGap = rVotes[0].v - dVotes[0].v + 1;
-  const electBothGap = rVotes[1].v - dVotes[1].v + 1;
-  const votesNeededToElectOne = Math.max(0, Math.ceil(electOneGap));
-  const votesNeededToElectBoth = Math.max(0, Math.ceil(electBothGap));
+  // Senate: single-seat gap.
+  const senVotesNeededD = Math.max(0, Math.ceil(senTotals.r - senTotals.d + 1));
+  const senVotesNeededR = Math.max(0, Math.ceil(senTotals.d - senTotals.r + 1));
+  const senateElectsD = senTotals.d > senTotals.r;
+  const senateWinner: Party | "tie" =
+    senTotals.d === senTotals.r ? "tie" : senTotals.d > senTotals.r ? "D" : "R";
+
+  // Full ticket (0..3 seats per party). Ties on Senate count as neither.
+  const ticketD = (senateElectsD ? 1 : 0) + asmSeats.D;
+  const ticketR = (senateWinner === "R" ? 1 : 0) + asmSeats.R;
+  const ticketSummary = `D ${ticketD} / R ${ticketR}`;
 
   return {
     rows,
     district: {
-      baseline: baselineDistrict,
-      scenario: scenarioTotals,
+      baseline: baselineAsm,
+      scenario: asmTotals,
       votesNeededToElectOne,
       votesNeededToElectBoth,
       electsOne: votesNeededToElectOne === 0,
       electsBoth: votesNeededToElectBoth === 0,
-      netSlateGain:
-        scenarioTotals.slateMarginVotes - baselineDistrict.slateMarginVotes,
+      netSlateGain: asmTotals.slateMarginVotes - baselineAsm.slateMarginVotes,
       finishers,
-      seats,
+      seats: asmSeats,
       secondSeatMargin,
+      senate: {
+        baseline: baselineSen,
+        scenario: senTotals,
+        votesNeededD: senVotesNeededD,
+        votesNeededR: senVotesNeededR,
+        electsD: senateElectsD,
+        netGain: senTotals.marginVotes - baselineSen.marginVotes,
+      },
+      ticket: {
+        D: ticketD,
+        R: ticketR,
+        senateWinner,
+        summary: ticketSummary,
+      },
     },
   };
 }
 
-function computeFinishers(s: SlateTotals): CandidateFinisher[] {
+function accModeAsm(a: ModeBreakdown, b: ModeBreakdown) {
+  a.ed += b.ed; a.early += b.early; a.vbm += b.vbm;
+}
+
+function finalizeAsm(t: AssemblyTotals) {
+  t.demSlate = t.dA + t.dB;
+  t.repSlate = t.rA + t.rB;
+  t.totalSlateVotes = t.demSlate + t.repSlate + t.other;
+  t.slateMarginVotes = t.demSlate - t.repSlate;
+  t.slateMarginPct =
+    t.totalSlateVotes === 0 ? 0 : (t.slateMarginVotes / t.totalSlateVotes) * 100;
+}
+
+function finalizeSen(t: SenateTotals) {
+  const tot = t.d + t.r + t.other;
+  t.marginVotes = t.d - t.r;
+  t.marginPct = tot === 0 ? 0 : (t.marginVotes / tot) * 100;
+}
+
+function computeFinishers(s: AssemblyTotals): CandidateFinisher[] {
   const list: Array<Omit<CandidateFinisher, "rank" | "seated">> = [
     { id: "dA", party: "D", votes: s.dA },
     { id: "dB", party: "D", votes: s.dB },
@@ -367,11 +450,7 @@ function computeFinishers(s: SlateTotals): CandidateFinisher[] {
     { id: "rB", party: "R", votes: s.rB },
   ];
   list.sort((a, b) => b.votes - a.votes);
-  return list.map((f, i) => ({
-    ...f,
-    rank: (i + 1) as 1 | 2 | 3 | 4,
-    seated: i < 2,
-  }));
+  return list.map((f, i) => ({ ...f, rank: (i + 1) as 1 | 2 | 3 | 4, seated: i < 2 }));
 }
 
 export function calculateVotesNeededToElectOne(d: DistrictResult): number {
@@ -381,41 +460,44 @@ export function calculateVotesNeededToElectBoth(d: DistrictResult): number {
   return d.votesNeededToElectBoth;
 }
 
-/** Estimate bullet vote impact in net D-margin votes for a scenario. */
+/** Bullet vote impact on Assembly D-slate margin (assembly-only effect). */
 export function calculateBulletVoteImpact(
   precincts: PrecinctBaseline[],
   a: ScenarioAssumptions,
 ): number {
-  const withBullet = calculateScenarioResult(precincts, a).district.scenario.slateMarginVotes;
-  const withoutBullet = calculateScenarioResult(precincts, {
-    ...a,
-    bulletVoteRate: 0,
-  }).district.scenario.slateMarginVotes;
-  return withBullet - withoutBullet;
+  const withIt = calculateScenarioResult(precincts, a).district.scenario.slateMarginVotes;
+  const without = calculateScenarioResult(precincts, { ...a, bulletVoteRate: 0 }).district.scenario.slateMarginVotes;
+  return withIt - without;
 }
 
-/** Estimate split-ticket impact in net D-margin votes for a scenario. */
+/** Split-ticket impact on Assembly D-slate margin (assembly-only effect). */
 export function calculateSplitTicketImpact(
   precincts: PrecinctBaseline[],
   a: ScenarioAssumptions,
 ): number {
-  const withSplit = calculateScenarioResult(precincts, a).district.scenario.slateMarginVotes;
-  const withoutSplit = calculateScenarioResult(precincts, {
-    ...a,
-    splitTicketRate: 0,
-  }).district.scenario.slateMarginVotes;
-  return withSplit - withoutSplit;
+  const withIt = calculateScenarioResult(precincts, a).district.scenario.slateMarginVotes;
+  const without = calculateScenarioResult(precincts, { ...a, splitTicketRate: 0 }).district.scenario.slateMarginVotes;
+  return withIt - without;
 }
 
-/** Per-mode contribution to scenario D-slate margin. */
-export function calculateVoteModeImpact(
-  rows: PrecinctRow[],
-): ModeBreakdown {
+/** Per-mode contribution to scenario D-slate margin (Assembly). */
+export function calculateVoteModeImpact(rows: PrecinctRow[]): ModeBreakdown {
   const out = emptyModeBreakdown();
   for (const r of rows) {
     out.ed += r.scenario.modeDemSlate.ed - r.scenario.modeRepSlate.ed;
     out.early += r.scenario.modeDemSlate.early - r.scenario.modeRepSlate.early;
     out.vbm += r.scenario.modeDemSlate.vbm - r.scenario.modeRepSlate.vbm;
+  }
+  return out;
+}
+
+/** Per-mode contribution to Senate scenario D-margin. */
+export function calculateSenateVoteModeImpact(rows: PrecinctRow[]): ModeBreakdown {
+  const out = emptyModeBreakdown();
+  for (const r of rows) {
+    out.ed += r.senateScenario.modeDem.ed - r.senateScenario.modeRep.ed;
+    out.early += r.senateScenario.modeDem.early - r.senateScenario.modeRep.early;
+    out.vbm += r.senateScenario.modeDem.vbm - r.senateScenario.modeRep.vbm;
   }
   return out;
 }

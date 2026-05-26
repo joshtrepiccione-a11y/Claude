@@ -1,5 +1,6 @@
 // Plain-English memo generator. Outputs sit on top of the active scenario
 // so memos always reflect the data the user sees in the dashboard.
+// Covers both the Senate race and the Assembly race, plus the full ticket.
 
 import { CANDIDATES, DISTRICT } from "../data/config";
 import type {
@@ -9,9 +10,7 @@ import type {
   ScenarioPreset,
 } from "../data/types";
 import { rankTargetPrecincts } from "../modeling/targets";
-import {
-  calculateVoteModeImpact,
-} from "../modeling/scenario";
+import { calculateVoteModeImpact } from "../modeling/scenario";
 import { scoreScenarioRealism } from "../modeling/realism";
 
 export interface MemoSection {
@@ -48,20 +47,22 @@ export function generateMemo(
   sections.push({
     title: "Baseline Position",
     body:
-      `The baseline slate margin is ${signed(district.baseline.slateMarginVotes)} votes ` +
-      `(${district.baseline.slateMarginPct.toFixed(1)} pp). The Democratic slate received ` +
-      `${Math.round(district.baseline.demSlate).toLocaleString()} votes and the Republican slate ` +
-      `${Math.round(district.baseline.repSlate).toLocaleString()} votes across the district's ` +
-      `${rows.length} precincts.`,
+      `Assembly: baseline slate margin ${signed(district.baseline.slateMarginVotes)} votes ` +
+      `(${district.baseline.slateMarginPct.toFixed(1)} pp). ` +
+      `Senate: baseline margin ${signed(district.senate.baseline.marginVotes)} votes ` +
+      `(${district.senate.baseline.marginPct.toFixed(1)} pp). ` +
+      `Across ${rows.length} precincts.`,
   });
 
   // 3. Active Scenario
   sections.push({
     title: "Active Scenario",
     body:
-      `Under the "${scName}" scenario, the projected slate margin is ` +
+      `Under "${scName}", projected Assembly slate margin is ` +
       `${signed(district.scenario.slateMarginVotes)} votes ` +
-      `(${district.scenario.slateMarginPct.toFixed(1)} pp). ` +
+      `(${district.scenario.slateMarginPct.toFixed(1)} pp); projected Senate margin is ` +
+      `${signed(district.senate.scenario.marginVotes)} votes ` +
+      `(${district.senate.scenario.marginPct.toFixed(1)} pp). ` +
       (scenario?.description ?? "Custom assumptions applied across the model."),
   });
 
@@ -69,14 +70,22 @@ export function generateMemo(
   sections.push({
     title: "Votes Needed",
     body:
-      district.electsBoth
-        ? `Both Democratic Assembly candidates are projected to win under this scenario, with a second-seat margin of ${Math.round(district.secondSeatMargin)} votes.`
-        : district.electsOne
-        ? `One Democratic Assembly candidate wins. ${district.votesNeededToElectBoth} additional votes are needed to elect the second.`
-        : `${district.votesNeededToElectOne} additional votes are required to elect one Democratic Assembly candidate. ${district.votesNeededToElectBoth} are required to elect both.`,
+      [
+        senateVotesNeededLine(district),
+        assemblyVotesNeededLine(district),
+      ].join(" "),
   });
 
-  // 5. Top Municipalities
+  // 5. Full Ticket Outcome (Senate + Assembly = 0..3 seats)
+  sections.push({
+    title: "Full Ticket Outcome",
+    body:
+      `Projected ticket: ${district.ticket.summary} (out of 3 seats). ` +
+      `Senate winner: ${district.ticket.senateWinner === "tie" ? "Tie" : district.ticket.senateWinner === "D" ? "Democrat" : "Republican"}. ` +
+      `Assembly seats: D ${district.seats.D} / R ${district.seats.R}.`,
+  });
+
+  // 6. Top Municipalities
   const byMuni = new Map<string, number>();
   for (const r of rows) {
     byMuni.set(r.baseline.municipality, (byMuni.get(r.baseline.municipality) ?? 0) + r.netVoteOpportunity);
@@ -85,15 +94,15 @@ export function generateMemo(
   sections.push({
     title: "Top Municipalities",
     body:
-      `The five municipalities offering the largest net Democratic vote opportunity are: ` +
+      `Five municipalities with the largest combined Senate+Assembly D vote opportunity: ` +
       topMunis.map(([m, v]) => `${m} (${signed(Math.round(v))})`).join(", ") + ".",
   });
 
-  // 6. Top Target Precincts
+  // 7. Top Target Precincts
   sections.push({
     title: "Top Target Precincts",
     body:
-      `Top targets by net vote opportunity: ` +
+      `Top targets by net D opportunity: ` +
       targets
         .slice(0, 5)
         .map(
@@ -103,20 +112,18 @@ export function generateMemo(
         .join("; ") + ".",
   });
 
-  // 7. Vote Mode Strategy
+  // 8. Vote Mode Strategy
   sections.push({
     title: "Vote Mode Strategy",
     body:
-      `Mode contributions to scenario slate margin: ` +
-      `Vote by Mail ${signed(Math.round(modeImpact.vbm))}, ` +
+      `Mode contributions to Assembly slate margin: ` +
+      `VBM ${signed(Math.round(modeImpact.vbm))}, ` +
       `Early Vote ${signed(Math.round(modeImpact.early))}, ` +
       `Election Day ${signed(Math.round(modeImpact.ed))}. ` +
       `Focus mode: ${focusMode(modeImpact)}.`,
   });
 
-  // 8. Assembly Candidate Mechanics
-  const dA = CANDIDATES.find((c) => c.id === "dA")!.label;
-  const dB = CANDIDATES.find((c) => c.id === "dB")!.label;
+  // 9. Assembly Candidate Mechanics
   sections.push({
     title: "Assembly Candidate Mechanics",
     body:
@@ -124,12 +131,24 @@ export function generateMemo(
       district.finishers
         .map((f) => `${f.rank}. ${labelFor(f.id)} — ${Math.round(f.votes).toLocaleString()}`)
         .join("; ") +
-      `. Projected seats: D ${district.seats.D}, R ${district.seats.R}. ` +
-      `Drop-off between ${dA} and ${dB} in the scenario: ` +
+      `. Assembly seats: D ${district.seats.D}, R ${district.seats.R}. ` +
+      `Second-seat margin: ${signed(district.secondSeatMargin)}. ` +
+      `Assembly drop-off between D candidates: ` +
       `${Math.round(Math.abs(district.scenario.dA - district.scenario.dB))} votes.`,
   });
 
-  // 9. Scenario Realism
+  // 10. Senate Race Mechanics
+  sections.push({
+    title: "Senate Race Mechanics",
+    body:
+      `Single-seat (4-year) race. ` +
+      `Democratic Senate candidate: ${Math.round(district.senate.scenario.d).toLocaleString()} votes. ` +
+      `Republican Senate candidate: ${Math.round(district.senate.scenario.r).toLocaleString()} votes. ` +
+      `Margin: ${signed(district.senate.scenario.marginVotes)} votes. ` +
+      `${district.senate.electsD ? "Projected D win." : `D needs ${district.senate.votesNeededD} additional votes.`}`,
+  });
+
+  // 11. Scenario Realism
   sections.push({
     title: "Scenario Realism",
     body:
@@ -142,26 +161,27 @@ export function generateMemo(
         .join("; ") + ".",
   });
 
-  // 10. Risks
+  // 12. Risks
   sections.push({
     title: "Risks",
     body: risks(district, assumptions),
   });
 
-  // 11. Recommended Next Steps
+  // 13. Recommended Next Steps
   sections.push({
     title: "Recommended Next Steps",
     body:
       `Prioritize ${focusMode(modeImpact)} programming in the top ${Math.min(10, targets.length)} precincts. ` +
-      `Reduce A/B candidate drop-off through joint visibility and mail. Continue tracking realism factors as new data is added.`,
+      `Reduce Assembly A/B drop-off through joint visibility and mail. ` +
+      `Coordinate Senate and Assembly field operations since most plausible paths lift both races together.`,
   });
 
-  // 12. Methodology
+  // 14. Methodology
   sections.push({
     title: "Data Methodology",
     body:
-      `Baseline figures use modeled precinct totals for the ${DISTRICT.year} ${DISTRICT.chamber} race. ` +
-      `Scenario outputs are deterministic transformations of the baseline using the assumptions shown on the Scenarios tab. ` +
+      `Baseline figures use modeled precinct totals for the ${DISTRICT.year} Senate and Assembly races (4-year Senate term, 2-year Assembly terms). ` +
+      `Scenario outputs are deterministic transformations of the baseline. ` +
       `Outputs are a model, not a prediction.`,
   });
 
@@ -173,26 +193,46 @@ export function generateMemo(
 }
 
 function focusMode(m: { ed: number; early: number; vbm: number }): string {
-  const arr = [
+  const arr: Array<[string, number]> = [
     ["Vote by Mail", m.vbm],
     ["Early Vote", m.early],
     ["Election Day", m.ed],
-  ] as const;
-  arr.slice().sort((a, b) => b[1] - a[1]);
-  const sorted = arr.slice().sort((a, b) => b[1] - a[1]);
-  return sorted[0][0];
+  ];
+  arr.sort((a, b) => b[1] - a[1]);
+  return arr[0][0];
+}
+
+function senateVotesNeededLine(d: DistrictResult): string {
+  if (d.senate.electsD) {
+    return `Senate: projected D win by ${Math.abs(Math.round(d.senate.scenario.marginVotes))} votes.`;
+  }
+  return `Senate: D needs ${d.senate.votesNeededD} additional votes to win.`;
+}
+
+function assemblyVotesNeededLine(d: DistrictResult): string {
+  if (d.electsBoth) {
+    return `Assembly: both D candidates projected to win; second-seat margin ${Math.round(d.secondSeatMargin)} votes.`;
+  }
+  if (d.electsOne) {
+    return `Assembly: one D candidate wins; ${d.votesNeededToElectBoth} more votes needed for both.`;
+  }
+  return `Assembly: ${d.votesNeededToElectOne} more votes for one seat, ${d.votesNeededToElectBoth} for both.`;
 }
 
 function risks(d: DistrictResult, a: ScenarioAssumptions): string {
   const r: string[] = [];
-  if (Math.abs(a.demSlateSwing - a.repSlateSwing) > 4)
-    r.push("Districtwide swing is large and may not be sustainable.");
-  if (a.turnoutDelta > 0.07)
-    r.push("Turnout assumption is more than 7% above baseline.");
+  const maxSwing = Math.max(
+    Math.abs(a.asmDemSwing - a.asmRepSwing),
+    Math.abs(a.senDemSwing - a.senRepSwing),
+  );
+  if (maxSwing > 4) r.push("Districtwide swing is large and may not be sustainable.");
+  if (a.turnoutDelta > 0.07) r.push("Turnout assumption exceeds 7% above baseline.");
   if (a.bulletVoteRate > 0.15)
-    r.push("Bullet voting at this rate would meaningfully suppress slate totals.");
+    r.push("Bullet voting at this rate would meaningfully suppress Assembly slate totals (note: model applies the penalty symmetrically — real-world impact often falls on the trailing candidate of the leading party).");
   if (d.secondSeatMargin > 0 && d.secondSeatMargin < 80)
-    r.push("Second-seat margin is razor-thin; reasonable variance could flip it back.");
+    r.push("Assembly second-seat margin is razor-thin; reasonable variance could flip it back.");
+  if (d.senate.electsD && Math.abs(d.senate.scenario.marginVotes) < 150)
+    r.push("Senate margin is narrow; ticket-split risk is elevated.");
   if (r.length === 0) r.push("No major scenario risks flagged.");
   return r.join(" ");
 }
@@ -212,11 +252,19 @@ function executiveSummary(
   bucket: string,
 ): string {
   const focus = focusMode(m);
-  if (d.electsBoth) {
-    return `Under the ${name} scenario, the Democratic Assembly slate elects both candidates with a second-seat margin of ${Math.round(d.secondSeatMargin)} votes. The largest modeled gain comes from ${focus}. The path is rated ${bucket} difficulty.`;
-  }
-  if (d.electsOne) {
-    return `Under the ${name} scenario, the Democratic Assembly slate elects one candidate. An additional ${d.votesNeededToElectBoth} votes would be needed to elect both. The largest modeled gain comes from ${focus}. The path is rated ${bucket} difficulty.`;
-  }
-  return `Under the ${name} scenario, the Democratic Assembly slate falls ${d.votesNeededToElectOne} votes short of electing one candidate. The largest modeled gain comes from ${focus}. The path is rated ${bucket} difficulty.`;
+  const senPart =
+    d.senate.electsD
+      ? `wins the Senate seat by ${Math.abs(Math.round(d.senate.scenario.marginVotes))} votes`
+      : `falls ${d.senate.votesNeededD} votes short in the Senate`;
+  const asmPart =
+    d.electsBoth
+      ? `elects both Assembly candidates (second-seat margin ${Math.round(d.secondSeatMargin)})`
+      : d.electsOne
+      ? `elects one Assembly candidate`
+      : `does not elect an Assembly candidate (gap ${d.votesNeededToElectOne})`;
+  return (
+    `Under the ${name} scenario, the Democratic ticket ${senPart} and ${asmPart}. ` +
+    `Full ticket: ${d.ticket.summary} of 3 seats. ` +
+    `The largest modeled gain comes from ${focus}. Path rated ${bucket} difficulty.`
+  );
 }

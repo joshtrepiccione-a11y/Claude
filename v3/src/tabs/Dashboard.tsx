@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { DistrictResult, PrecinctRow } from "../lib/data/types";
 import { CANDIDATES, DISTRICT } from "../lib/data/config";
 import {
@@ -30,10 +30,11 @@ export function Dashboard({
   geojson: GeoJSON.FeatureCollection;
 }) {
   const { state, dispatch } = useApp();
-  const [mapLayerLocal, setMapLayerLocal] = useState(state.mapLayer);
 
   const baselineMarginParty = partyOf(district.baseline.slateMarginPct);
   const scenarioMarginParty = partyOf(district.scenario.slateMarginPct);
+  const senateBaselineParty = partyOf(district.senate.baseline.marginPct);
+  const senateScenarioParty = partyOf(district.senate.scenario.marginPct);
   const preset = state.scenarioId !== "custom" ? SCENARIO_BY_ID[state.scenarioId] : null;
   const realism = useMemo(
     () => scoreScenarioRealism(state.assumptions, district, rows),
@@ -82,22 +83,19 @@ export function Dashboard({
           <Pill tone="amber">
             Data Status: Modeled Precinct Baseline
           </Pill>
-          <InfoIcon tip="This prototype may use modeled or interpolated precinct data until certified precinct-level Assembly results are imported." />
+          <InfoIcon tip="This prototype uses modeled / interpolated precinct data for both the 2027 Senate (single-seat, 4-year term) and General Assembly (two-seat, 2-year terms) races until certified results are imported." />
         </div>
       </div>
 
-      {/* KPI cards */}
+      {/* Assembly KPI row */}
+      <div className="text-xs uppercase tracking-wide text-slate-500 mt-1">Assembly (two-seat slate)</div>
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
         <Card>
           <Stat
             label="Baseline Slate Margin"
             value={fmtMargin(district.baseline.slateMarginPct, baselineMarginParty)}
             hint={`${fmtSigned(district.baseline.slateMarginVotes)} votes`}
-            tone={
-              baselineMarginParty === "D" ? "good"
-              : baselineMarginParty === "R" ? "bad"
-              : "neutral"
-            }
+            tone={baselineMarginParty === "D" ? "good" : baselineMarginParty === "R" ? "bad" : "neutral"}
           />
         </Card>
         <Card>
@@ -118,14 +116,55 @@ export function Dashboard({
         </Card>
         <Card>
           <Stat
-            label="Active Scenario Result"
+            label="Scenario Slate Margin"
             value={fmtMargin(district.scenario.slateMarginPct, scenarioMarginParty)}
-            hint={`${fmtSigned(district.scenario.slateMarginVotes)} votes (${preset?.name ?? "Custom"})`}
-            tone={
-              scenarioMarginParty === "D" ? "good"
-              : scenarioMarginParty === "R" ? "bad"
-              : "neutral"
-            }
+            hint={`${fmtSigned(district.scenario.slateMarginVotes)} votes`}
+            tone={scenarioMarginParty === "D" ? "good" : scenarioMarginParty === "R" ? "bad" : "neutral"}
+          />
+        </Card>
+        <Card>
+          <Stat
+            label="Second-Seat Margin"
+            value={fmtSigned(district.secondSeatMargin)}
+            hint={`${district.finishers[1] ? CANDIDATES.find((c) => c.id === district.finishers[1].id)?.shortLabel : "—"} vs. ${district.finishers[2] ? CANDIDATES.find((c) => c.id === district.finishers[2].id)?.shortLabel : "—"}`}
+            tone={district.secondSeatMargin > 80 ? "good" : "warn"}
+          />
+        </Card>
+      </div>
+
+      {/* Senate KPI row */}
+      <div className="text-xs uppercase tracking-wide text-slate-500 mt-2">Senate (single-seat, 4-year term)</div>
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <Card>
+          <Stat
+            label="Senate Baseline Margin"
+            value={fmtMargin(district.senate.baseline.marginPct, senateBaselineParty)}
+            hint={`${fmtSigned(district.senate.baseline.marginVotes)} votes`}
+            tone={senateBaselineParty === "D" ? "good" : senateBaselineParty === "R" ? "bad" : "neutral"}
+          />
+        </Card>
+        <Card>
+          <Stat
+            label="Senate Scenario Margin"
+            value={fmtMargin(district.senate.scenario.marginPct, senateScenarioParty)}
+            hint={`${fmtSigned(district.senate.scenario.marginVotes)} votes`}
+            tone={senateScenarioParty === "D" ? "good" : senateScenarioParty === "R" ? "bad" : "neutral"}
+          />
+        </Card>
+        <Card>
+          <Stat
+            label="Votes to Win Senate"
+            value={district.senate.electsD ? "Won" : fmtNumber(district.senate.votesNeededD)}
+            hint="D candidate vs. R candidate"
+            tone={district.senate.electsD ? "good" : "warn"}
+          />
+        </Card>
+        <Card>
+          <Stat
+            label="Full Ticket"
+            value={`D ${district.ticket.D} / R ${district.ticket.R}`}
+            hint="Senate + Assembly seats (0–3)"
+            tone={district.ticket.D >= 2 ? "good" : district.ticket.D === 1 ? "neutral" : "bad"}
           />
         </Card>
         <Card>
@@ -133,20 +172,47 @@ export function Dashboard({
             label="Scenario Realism"
             value={realism.bucket}
             hint={`score ${Math.round(realism.score)}/100`}
-            tone={
-              realism.bucket === "Fantasy" || realism.bucket === "Aggressive"
-                ? "warn"
-                : realism.bucket === "Medium-High" ? "neutral" : "good"
-            }
+            tone={realism.bucket === "Fantasy" || realism.bucket === "Aggressive" ? "warn" : realism.bucket === "Medium-High" ? "neutral" : "good"}
           />
         </Card>
       </div>
 
-      {/* Projected seat outcome — emphasize Assembly two-seat mechanics */}
+      {/* Projected Outcome — Senate + Assembly + Full Ticket */}
       <Card
-        title="Projected Seat Outcome"
+        title="Projected Outcome — Full Ticket"
         subtitle={`Scenario: ${preset?.name ?? "Custom"} — modeled, not a prediction`}
       >
+        {/* Senate row */}
+        <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Senate (single seat)</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+          {(["senD", "senR"] as const).map((id) => {
+            const cand = CANDIDATES.find((c) => c.id === id)!;
+            const votes = id === "senD" ? district.senate.scenario.d : district.senate.scenario.r;
+            const seated =
+              (id === "senD" && district.ticket.senateWinner === "D") ||
+              (id === "senR" && district.ticket.senateWinner === "R");
+            return (
+              <div
+                key={id}
+                className={`rounded-lg border px-3 py-3 ${
+                  seated
+                    ? cand.party === "D" ? "border-blue-200 bg-blue-50" : "border-red-200 bg-red-50"
+                    : "border-slate-200 bg-slate-50"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <Pill tone={cand.party === "D" ? "dem" : "rep"}>{cand.shortLabel}</Pill>
+                  <span className="text-[11px] text-slate-500">{seated ? "Wins seat" : "Loses"}</span>
+                </div>
+                <div className="text-sm font-medium text-slate-700 mt-2">{cand.label}</div>
+                <div className="text-xl font-semibold mt-1">{fmtNumber(votes)}</div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Assembly row */}
+        <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Assembly (top 2 of 4 win)</div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {district.finishers.map((f) => {
             const cand = CANDIDATES.find((c) => c.id === f.id)!;
@@ -155,9 +221,7 @@ export function Dashboard({
                 key={f.id}
                 className={`rounded-lg border px-3 py-3 ${
                   f.seated
-                    ? f.party === "D"
-                      ? "border-blue-200 bg-blue-50"
-                      : "border-red-200 bg-red-50"
+                    ? f.party === "D" ? "border-blue-200 bg-blue-50" : "border-red-200 bg-red-50"
                     : "border-slate-200 bg-slate-50"
                 }`}
               >
@@ -174,17 +238,33 @@ export function Dashboard({
             );
           })}
         </div>
-        <div className="mt-3 flex items-center justify-between text-sm">
-          <div>
-            Projected seats:{" "}
-            <span className="text-blue-700 font-semibold">D {district.seats.D}</span>{" "}
-            ·{" "}
-            <span className="text-red-700 font-semibold">R {district.seats.R}</span>
+
+        {/* Ticket summary */}
+        <div className="mt-4 border-t border-slate-100 pt-3 flex flex-wrap items-center justify-between gap-3 text-sm">
+          <div className="flex items-center gap-3">
+            <Pill tone="navy">Full ticket</Pill>
+            <span>
+              <span className="text-blue-700 font-semibold">D {district.ticket.D}</span>{" "}/{" "}
+              <span className="text-red-700 font-semibold">R {district.ticket.R}</span>{" "}
+              <span className="text-slate-500">of 3 seats</span>
+            </span>
           </div>
-          <div className="text-slate-600">
-            Margin for second seat:{" "}
-            <span className="font-semibold">
-              {fmtSigned(district.secondSeatMargin)}
+          <div className="flex flex-wrap gap-4 text-slate-600">
+            <span>
+              Senate winner:{" "}
+              <span className={
+                district.ticket.senateWinner === "D" ? "text-blue-700 font-semibold"
+                : district.ticket.senateWinner === "R" ? "text-red-700 font-semibold"
+                : "font-semibold"
+              }>{district.ticket.senateWinner === "tie" ? "Tie" : district.ticket.senateWinner}</span>
+            </span>
+            <span>
+              Assembly seats:{" "}
+              <span className="text-blue-700 font-semibold">D {district.seats.D}</span> /{" "}
+              <span className="text-red-700 font-semibold">R {district.seats.R}</span>
+            </span>
+            <span>
+              Second-seat margin: <span className="font-semibold">{fmtSigned(district.secondSeatMargin)}</span>
             </span>
           </div>
         </div>
@@ -198,14 +278,15 @@ export function Dashboard({
             subtitle="LD8 precincts coloured by selected layer"
             right={
               <select
-                value={mapLayerLocal}
-                onChange={(e) => {
-                  setMapLayerLocal(e.target.value as typeof mapLayerLocal);
-                  dispatch({ type: "setMapLayer", layer: e.target.value as typeof mapLayerLocal });
-                }}
+                value={state.mapLayer}
+                onChange={(e) =>
+                  dispatch({ type: "setMapLayer", layer: e.target.value as typeof state.mapLayer })
+                }
                 className="text-xs border border-slate-300 rounded px-2 py-1"
               >
-                <option value="slate-margin">Slate Margin</option>
+                <option value="slate-margin">Assembly Slate Margin</option>
+                <option value="senate-margin">Senate Margin</option>
+                <option value="ticket-seats">Full Ticket Lean</option>
                 <option value="net-vote-opportunity">Net Vote Opportunity</option>
                 <option value="persuasion-opportunity">Persuasion</option>
                 <option value="turnout-opportunity">Turnout</option>

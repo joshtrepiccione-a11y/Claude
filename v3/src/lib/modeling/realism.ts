@@ -27,12 +27,15 @@ export function scoreScenarioRealism(
 ): RealismResult {
   const factors: RealismResult["factors"] = [];
 
-  // 1. Magnitude of districtwide swing.
-  const totalSwingPP = Math.abs(a.demSlateSwing - a.repSlateSwing);
+  // 1. Magnitude of districtwide swing — penalise the LARGER of the two
+  // race swings (whichever is more aggressive sets the ceiling).
+  const asmSwingPP = Math.abs(a.asmDemSwing - a.asmRepSwing);
+  const senSwingPP = Math.abs(a.senDemSwing - a.senRepSwing);
+  const totalSwingPP = Math.max(asmSwingPP, senSwingPP);
   factors.push({
     label: "District swing",
     weight: Math.min(40, totalSwingPP * 3.5),
-    note: `${totalSwingPP.toFixed(1)} pt slate swing`,
+    note: `max(${asmSwingPP.toFixed(1)} pp Asm, ${senSwingPP.toFixed(1)} pp Sen)`,
   });
 
   // 2. Required turnout change.
@@ -51,11 +54,15 @@ export function scoreScenarioRealism(
     note: `Σ|mode swing|=${modeSwingMag.toFixed(1)} pp`,
   });
 
-  // 4. Bullet vote + split-ticket assumptions.
+  // 4. Bullet vote + split-ticket assumptions (Assembly-only).
+  // Note: the bullet-vote model in scenario.ts applies the penalty
+  // symmetrically across parties; in reality bullet voting tends to hurt
+  // the trailing candidate of the leading party more. High bullet rates
+  // here are flagged as fragile by design.
   factors.push({
     label: "Bullet & split assumptions",
     weight: Math.min(10, a.bulletVoteRate * 25 + a.splitTicketRate * 25),
-    note: `bullet=${(a.bulletVoteRate * 100).toFixed(0)}%, split=${(a.splitTicketRate * 100).toFixed(0)}%`,
+    note: `bullet=${(a.bulletVoteRate * 100).toFixed(0)}%, split=${(a.splitTicketRate * 100).toFixed(0)}% (Asm only)`,
   });
 
   // 5. Number of precincts that need improvement vs. baseline.

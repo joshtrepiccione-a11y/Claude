@@ -17,6 +17,7 @@ import { scoreScenarioRealism } from "../lib/modeling/realism";
 import {
   findWinningPath,
   type WinningPathFlavor,
+  type WinningPathResult,
 } from "../lib/modeling/winningPath";
 
 const FLAVORS: { id: WinningPathFlavor; label: string }[] = [
@@ -34,7 +35,8 @@ export function Scenarios({ precincts }: { precincts: PrecinctBaseline[] }) {
   const [mode, setMode] = useState<"simple" | "expert">(state.uiMode);
   const [savedName, setSavedName] = useState("");
   const [flavor, setFlavor] = useState<WinningPathFlavor>("balanced");
-  const [goal, setGoal] = useState<"electOne" | "electBoth">("electOne");
+  const [goal, setGoal] = useState<"electOne" | "electBoth" | "winSenate" | "sweepTicket">("electOne");
+  const [pathResult, setPathResult] = useState<WinningPathResult | null>(null);
 
   const preset = state.scenarioId !== "custom" ? SCENARIO_BY_ID[state.scenarioId] : null;
 
@@ -69,7 +71,7 @@ export function Scenarios({ precincts }: { precincts: PrecinctBaseline[] }) {
       flavor,
     );
     dispatch({ type: "setAssumptions", a: result.assumptions });
-    alert(result.summary + (result.feasible ? "" : "\n(Heuristic stopped after iteration cap.)"));
+    setPathResult(result);
   }
 
   return (
@@ -142,11 +144,13 @@ export function Scenarios({ precincts }: { precincts: PrecinctBaseline[] }) {
             <label className="text-xs uppercase tracking-wide text-slate-500">Goal</label>
             <select
               value={goal}
-              onChange={(e) => setGoal(e.target.value as "electOne" | "electBoth")}
+              onChange={(e) => setGoal(e.target.value as typeof goal)}
               className="block mt-1 text-sm border border-slate-300 rounded px-2 py-1.5"
             >
               <option value="electOne">Elect one Assembly candidate</option>
               <option value="electBoth">Elect both Assembly candidates</option>
+              <option value="winSenate">Win the Senate seat</option>
+              <option value="sweepTicket">Sweep full ticket (3 of 3)</option>
             </select>
           </div>
           <div>
@@ -162,6 +166,12 @@ export function Scenarios({ precincts }: { precincts: PrecinctBaseline[] }) {
           <Button onClick={onFindPath}>Find a Winning Path</Button>
           <p className="text-xs text-slate-500">Modeled recommendation — not a prediction.</p>
         </div>
+        {pathResult && (
+          <div className={`mt-3 rounded-md border px-3 py-2 text-sm ${pathResult.feasible ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+            <div className="font-medium">{pathResult.feasible ? "Path found" : "Path not converged"}</div>
+            <div className="text-xs mt-1">{pathResult.summary}</div>
+          </div>
+        )}
       </Card>
 
       <Card title="Saved scenario comparison">
@@ -226,12 +236,13 @@ export function Scenarios({ precincts }: { precincts: PrecinctBaseline[] }) {
 
 function mainLever(a: ScenarioAssumptions): string {
   const items: Array<[string, number]> = [
-    ["D slate swing", Math.abs(a.demSlateSwing - a.repSlateSwing)],
+    ["Assembly D swing", Math.abs(a.asmDemSwing - a.asmRepSwing)],
+    ["Senate D swing", Math.abs(a.senDemSwing - a.senRepSwing)],
     ["Turnout", Math.abs(a.turnoutDelta * 100)],
     ["VBM swing", Math.abs(a.vbmMarginSwing)],
     ["Early swing", Math.abs(a.earlyMarginSwing)],
     ["Election Day swing", Math.abs(a.edMarginSwing)],
-    ["Bullet", a.bulletVoteRate * 100],
+    ["Bullet (Asm)", a.bulletVoteRate * 100],
   ];
   items.sort((a, b) => b[1] - a[1]);
   return items[0][0];
@@ -246,18 +257,24 @@ function ExpertControls({
 }) {
   const sliders: Array<[keyof ScenarioAssumptions, string, number, number, number, string]> = [
     ["turnoutDelta", "Districtwide turnout change", -0.2, 0.2, 0.005, "Δ (frac)"],
-    ["demSlateSwing", "Democratic slate swing", -10, 10, 0.1, "pp"],
-    ["repSlateSwing", "Republican slate swing", -10, 10, 0.1, "pp"],
-    ["candidateAAdjustment", "Candidate A overperformance", -5, 5, 0.1, "pp"],
-    ["candidateBAdjustment", "Candidate B overperformance", -5, 5, 0.1, "pp"],
-    ["bulletVoteRate", "Bullet vote rate", 0, 0.4, 0.01, "frac"],
-    ["splitTicketRate", "Split-ticket rate", 0, 0.3, 0.01, "frac"],
+    // Assembly-specific
+    ["asmDemSwing", "Assembly Democratic slate swing", -10, 10, 0.1, "pp"],
+    ["asmRepSwing", "Assembly Republican slate swing", -10, 10, 0.1, "pp"],
+    // Senate-specific
+    ["senDemSwing", "Senate Democratic swing", -10, 10, 0.1, "pp"],
+    ["senRepSwing", "Senate Republican swing", -10, 10, 0.1, "pp"],
+    // Assembly candidate dynamics
+    ["candidateAAdjustment", "Assembly Candidate A overperformance", -5, 5, 0.1, "pp"],
+    ["candidateBAdjustment", "Assembly Candidate B overperformance", -5, 5, 0.1, "pp"],
+    ["bulletVoteRate", "Bullet vote rate (Assembly only)", 0, 0.4, 0.01, "frac"],
+    ["splitTicketRate", "Split-ticket rate (Assembly only)", 0, 0.3, 0.01, "frac"],
+    // Shared mode controls
     ["vbmShare", "VBM turnout share (override)", 0, 1, 0.01, "frac"],
     ["earlyShare", "Early vote turnout share (override)", 0, 1, 0.01, "frac"],
     ["edShare", "Election Day turnout share (override)", 0, 1, 0.01, "frac"],
-    ["vbmMarginSwing", "VBM margin swing", -10, 10, 0.1, "pp"],
-    ["earlyMarginSwing", "Early vote margin swing", -10, 10, 0.1, "pp"],
-    ["edMarginSwing", "Election Day margin swing", -10, 10, 0.1, "pp"],
+    ["vbmMarginSwing", "VBM margin swing (both races)", -10, 10, 0.1, "pp"],
+    ["earlyMarginSwing", "Early vote margin swing (both races)", -10, 10, 0.1, "pp"],
+    ["edMarginSwing", "Election Day margin swing (both races)", -10, 10, 0.1, "pp"],
   ];
   const overrideSum = a.vbmShare + a.earlyShare + a.edShare;
   return (

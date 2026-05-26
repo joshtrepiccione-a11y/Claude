@@ -17,10 +17,12 @@ import { SCENARIO_BY_ID } from "../lib/scenarios/presets";
 
 export type TabId = "dashboard" | "map" | "targets" | "scenarios" | "report" | "data";
 export type MapLayer =
-  | "slate-margin"
+  | "slate-margin"                  // Assembly slate
+  | "senate-margin"                 // Senate single-seat
+  | "ticket-seats"                  // Full ticket D seat count (0..3)
   | "candidate-a-margin"
   | "candidate-b-margin"
-  | "net-vote-opportunity"
+  | "net-vote-opportunity"          // Senate + Assembly combined
   | "turnout-opportunity"
   | "persuasion-opportunity"
   | "vote-mode-priority"
@@ -28,7 +30,9 @@ export type MapLayer =
   | "recommended-action";
 
 export type RaceView =
-  | "slate"
+  | "slate"          // Assembly slate
+  | "senate"         // Senate single-seat
+  | "ticket"         // Combined ticket (0..3 seats)
   | "dA"
   | "dB"
   | "rA"
@@ -87,8 +91,7 @@ export type Action =
   | { type: "setUiMode"; m: "simple" | "expert" }
   | { type: "setMinNetVote"; v: number }
   | { type: "saveScenario"; name: string }
-  | { type: "deleteSaved"; id: string }
-  | { type: "loadState"; s: Partial<AppState> };
+  | { type: "deleteSaved"; id: string };
 
 function reducer(s: AppState, a: Action): AppState {
   switch (a.type) {
@@ -142,8 +145,6 @@ function reducer(s: AppState, a: Action): AppState {
     }
     case "deleteSaved":
       return { ...s, saved: s.saved.filter((x) => x.id !== a.id) };
-    case "loadState":
-      return { ...s, ...a.s };
   }
 }
 

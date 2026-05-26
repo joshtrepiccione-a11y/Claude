@@ -28,7 +28,7 @@ export function Nav({
           </div>
           <div className="leading-tight">
             <div className="font-semibold text-sm tracking-tight">Path to Victory</div>
-            <div className="text-[11px] text-navy-200">NJ LD8 · 2027 Assembly</div>
+            <div className="text-[11px] text-navy-200">NJ LD8 · 2027 Senate &amp; Assembly</div>
           </div>
         </div>
 

@@ -140,6 +140,10 @@ export function colorFor(row: PrecinctRow, layer: MapLayer): string {
   switch (layer) {
     case "slate-margin":
       return marginColor(row.scenarioSlateMarginPct);
+    case "senate-margin":
+      return marginColor(row.senateScenarioMarginPct);
+    case "ticket-seats":
+      return ticketColor(row);
     case "candidate-a-margin":
       return marginColor(candidateMargin(row, "A"));
     case "candidate-b-margin":
@@ -157,6 +161,13 @@ export function colorFor(row: PrecinctRow, layer: MapLayer): string {
     case "recommended-action":
       return actionColor(row.action);
   }
+}
+
+// Ticket-level: combine Senate + Assembly scenario margins into a single
+// "lean" indicator. Positive = D ticket precinct; negative = R ticket precinct.
+function ticketColor(r: PrecinctRow): string {
+  const combined = r.senateScenarioMarginPct * 0.4 + r.scenarioSlateMarginPct * 0.6;
+  return marginColor(combined);
 }
 
 function marginColor(pp: number): string {

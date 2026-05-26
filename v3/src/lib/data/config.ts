@@ -10,33 +10,44 @@ export type ConfidenceLabel =
   | "Scenario"
   | "Derived";
 
+export type CandidateSlot = "senD" | "senR" | "dA" | "dB" | "rA" | "rB";
+
 export interface CandidateConfig {
-  id: "dA" | "dB" | "rA" | "rB";
+  id: CandidateSlot;
   party: Party;
+  race: "senate" | "assembly";
   label: string;       // Placeholder label shown in UI
   shortLabel: string;  // Compact label for charts
   isPlaceholder: boolean;
 }
 
-// Two-seat Assembly race: two Democratic and two Republican candidates.
-// Confirmed=false means these are placeholders. When filings are certified,
-// update labels and flip `isPlaceholder` to false.
+// 2027 LD8 ballot: ONE Senate seat (single-seat race) plus TWO Assembly seats
+// (two-vote slate race). All names are placeholders until certified filings
+// are imported — flip `isPlaceholder` to false then.
 export const CANDIDATES: CandidateConfig[] = [
-  { id: "dA", party: "D", label: "Democratic Candidate A", shortLabel: "D-A", isPlaceholder: true },
-  { id: "dB", party: "D", label: "Democratic Candidate B", shortLabel: "D-B", isPlaceholder: true },
-  { id: "rA", party: "R", label: "Republican Candidate A", shortLabel: "R-A", isPlaceholder: true },
-  { id: "rB", party: "R", label: "Republican Candidate B", shortLabel: "R-B", isPlaceholder: true },
+  { id: "senD", party: "D", race: "senate",   label: "Democratic Senate Candidate", shortLabel: "D-Sen", isPlaceholder: true },
+  { id: "senR", party: "R", race: "senate",   label: "Republican Senate Candidate", shortLabel: "R-Sen", isPlaceholder: true },
+  { id: "dA",   party: "D", race: "assembly", label: "Democratic Candidate A",      shortLabel: "D-A",   isPlaceholder: true },
+  { id: "dB",   party: "D", race: "assembly", label: "Democratic Candidate B",      shortLabel: "D-B",   isPlaceholder: true },
+  { id: "rA",   party: "R", race: "assembly", label: "Republican Candidate A",      shortLabel: "R-A",   isPlaceholder: true },
+  { id: "rB",   party: "R", race: "assembly", label: "Republican Candidate B",      shortLabel: "R-B",   isPlaceholder: true },
 ];
 
+// The 2027 LD8 general election fills three seats total:
+//   - 1 State Senate seat (4-year term, 2028-2031)
+//   - 2 General Assembly seats (2-year terms, 2028-2029)
+// Voters cast one Senate vote and up to two Assembly votes.
 export const DISTRICT = {
   state: "NJ",
-  chamber: "General Assembly",
+  chambers: ["State Senate", "General Assembly"] as const,
   number: 8,
   year: 2027,
-  seats: 2,
+  seats: { senate: 1, assembly: 2, total: 3 },
   electionType: "General",
   displayName: "NJ Legislative District 8",
-  subtitle: "2027 General Assembly Scenario Model",
+  subtitle: "2027 State Senate & General Assembly Scenario Model",
+  senateTermYears: 4,
+  assemblyTermYears: 2,
 };
 
 // LD8 municipalities per official 2022 redistricting (Atlantic + Burlington).

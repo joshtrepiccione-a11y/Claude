@@ -6,10 +6,12 @@ import { PrecinctDrawer } from "../components/Drawer";
 import { Card, Pill } from "../components/UI";
 
 const LAYERS: { id: MapLayer; label: string }[] = [
-  { id: "slate-margin", label: "Slate Margin" },
-  { id: "candidate-a-margin", label: "Candidate A Margin" },
-  { id: "candidate-b-margin", label: "Candidate B Margin" },
-  { id: "net-vote-opportunity", label: "Net Vote Opportunity" },
+  { id: "slate-margin", label: "Assembly Slate Margin" },
+  { id: "senate-margin", label: "Senate Margin" },
+  { id: "ticket-seats", label: "Full Ticket Lean" },
+  { id: "candidate-a-margin", label: "Assembly Candidate A Margin" },
+  { id: "candidate-b-margin", label: "Assembly Candidate B Margin" },
+  { id: "net-vote-opportunity", label: "Net Vote Opportunity (S+A)" },
   { id: "turnout-opportunity", label: "Turnout Opportunity" },
   { id: "persuasion-opportunity", label: "Persuasion Opportunity" },
   { id: "vote-mode-priority", label: "Vote Mode Priority" },
@@ -19,12 +21,14 @@ const LAYERS: { id: MapLayer; label: string }[] = [
 
 const RACE_VIEWS: { id: RaceView; label: string }[] = [
   { id: "slate", label: "Assembly Slate" },
-  { id: "dA", label: "Democratic Candidate A" },
-  { id: "dB", label: "Democratic Candidate B" },
-  { id: "rA", label: "Republican Candidate A" },
-  { id: "rB", label: "Republican Candidate B" },
-  { id: "dropoff", label: "Candidate Drop-Off" },
-  { id: "bullet", label: "Bullet Vote Risk" },
+  { id: "senate", label: "Senate (single-seat)" },
+  { id: "ticket", label: "Full Ticket (0–3 seats)" },
+  { id: "dA", label: "Democratic Assembly Candidate A" },
+  { id: "dB", label: "Democratic Assembly Candidate B" },
+  { id: "rA", label: "Republican Assembly Candidate A" },
+  { id: "rB", label: "Republican Assembly Candidate B" },
+  { id: "dropoff", label: "Assembly Candidate Drop-Off" },
+  { id: "bullet", label: "Bullet Vote Risk (Assembly)" },
   { id: "split", label: "Split Ticket Risk" },
 ];
 

@@ -1,6 +1,5 @@
 // Load and normalise the LD8 precinct GeoJSON into V3's domain types.
-// We deliberately reshape the upstream "Senate-and-Assembly" GeoJSON into
-// an Assembly-first PrecinctBaseline collection.
+// The 2027 ballot is Senate + Assembly, so we load both race blocks.
 
 import type { PrecinctBaseline } from "./types";
 import { isLD8Municipality } from "./config";
@@ -11,11 +10,20 @@ export interface LoadedData {
   warnings: string[];
 }
 
-// Upstream GeoJSON property shape we care about (a subset of the v2 schema).
+interface ModeSlice {
+  d: number;
+  r: number;
+  o: number;
+  total: number;
+}
+
+// Upstream GeoJSON property shape we care about.
 interface UpstreamProps {
   county: string;
   precinct: string;
   municipality: string;
+
+  // Assembly baseline
   assem27_baseline_d: number;
   assem27_baseline_r: number;
   assem27_baseline_other: number;
@@ -24,13 +32,16 @@ interface UpstreamProps {
   assem25_d2: number;
   assem25_r1: number;
   assem25_r2: number;
-  assem27_modes: {
-    ed: { d: number; r: number; o: number; total: number };
-    early: { d: number; r: number; o: number; total: number };
-    vbm: { d: number; r: number; o: number; total: number };
-  };
-  calibration?: { intra_d_d1: number; intra_r_r1: number; bullet_pct: number };
-  baseline_source?: { asm: string };
+  assem27_modes: { ed: ModeSlice; early: ModeSlice; vbm: ModeSlice };
+
+  // Senate baseline
+  sen27_baseline_d: number;
+  sen27_baseline_r: number;
+  sen27_baseline_other: number;
+  sen27_baseline_total: number;
+  sen27_modes: { ed: ModeSlice; early: ModeSlice; vbm: ModeSlice };
+
+  baseline_source?: { asm: string; sen: string };
 }
 
 const DATA_URL = new URL("./data/ld8_precincts.geojson", document.baseURI).toString();
@@ -54,57 +65,84 @@ export async function loadLD8(): Promise<LoadedData> {
       continue;
     }
 
-    // Use the 2025 Assembly result to estimate per-candidate splits
-    // (intra-D and intra-R shares within each slate), then project the
-    // 2027 baseline slate vote totals onto two candidates each.
+    // ── Assembly per-candidate split ───────────────────────────────
+    // The upstream 2027 Assembly baseline gives slate totals only. We use
+    // 2025 Assembly results (assem25_d1/d2, r1/r2) to estimate the intra-
+    // slate split between Candidate A and Candidate B for each party.
     const d1Share = safeRatio(p.assem25_d1, p.assem25_d1 + p.assem25_d2, 0.5);
     const r1Share = safeRatio(p.assem25_r1, p.assem25_r1 + p.assem25_r2, 0.5);
 
-    // 2027 baseline two-vote slate totals come straight from the GeoJSON.
     const dSlate = p.assem27_baseline_d || 0;
     const rSlate = p.assem27_baseline_r || 0;
-    const other = p.assem27_baseline_other || 0;
-    const ballots = p.assem27_baseline_voters || 0;
+    const ballotsAsm = p.assem27_baseline_voters || 0;
 
-    const modes = p.assem27_modes;
-    const modeTurnout = {
-      ed: modes.ed.total,
-      early: modes.early.total,
-      vbm: modes.vbm.total,
-    };
-    const modeDem = { ed: modes.ed.d, early: modes.early.d, vbm: modes.vbm.d };
-    const modeRep = { ed: modes.ed.r, early: modes.early.r, vbm: modes.vbm.r };
+    const am = p.assem27_modes;
+    const asmModeTurnout = { ed: am.ed.total, early: am.early.total, vbm: am.vbm.total };
+    const asmModeDem = { ed: am.ed.d, early: am.early.d, vbm: am.vbm.d };
+    const asmModeRep = { ed: am.ed.r, early: am.early.r, vbm: am.vbm.r };
 
-    // Source label from upstream — coerce to our ConfidenceLabel union.
-    const upstream = (p.baseline_source?.asm ?? "modeled").toLowerCase();
-    const confidence =
-      upstream.includes("real") ? "Certified"
-        : upstream === "modeled" ? "Modeled"
-        : upstream === "estimated" ? "Estimated"
-        : upstream === "interpolated" ? "Estimated"
-        : upstream === "calibrated" ? "Derived"
-        : "Modeled";
+    // ── Senate baseline ────────────────────────────────────────────
+    const senD = p.sen27_baseline_d || 0;
+    const senR = p.sen27_baseline_r || 0;
+    const senOther = p.sen27_baseline_other || 0;
+    const senTotal = p.sen27_baseline_total || senD + senR + senOther;
+
+    const sm = p.sen27_modes;
+    const senModeTurnout = { ed: sm.ed.total, early: sm.early.total, vbm: sm.vbm.total };
+    const senModeDem = { ed: sm.ed.d, early: sm.early.d, vbm: sm.vbm.d };
+    const senModeRep = { ed: sm.ed.r, early: sm.early.r, vbm: sm.vbm.r };
+
+    const asmConfidence = coerceConfidence(p.baseline_source?.asm);
+    const senConfidence = coerceConfidence(p.baseline_source?.sen);
+
+    // Registered voters: the upstream GeoJSON does not carry a registration
+    // count. Approximate it as 1.45 × Assembly ballot count and tag it as
+    // Estimated so the UI can flag the source. Replace via voter-file import.
+    const REG_MULTIPLIER = 1.45;
 
     precincts.push({
       precinctId: p.precinct,
       precinctName: p.precinct,
       municipality: p.municipality,
       county: p.county,
-      registeredVoters: Math.max(ballots, 0) * 1.45, // rough multiplier; flagged as Estimated when no voter file
-      baselineTurnout: ballots,
+
+      registeredVoters: Math.max(ballotsAsm, senTotal) * REG_MULTIPLIER,
+      registrationConfidence: "Estimated",
+
+      // Assembly
+      baselineTurnout: ballotsAsm,
       demA: dSlate * d1Share,
       demB: dSlate * (1 - d1Share),
       repA: rSlate * r1Share,
       repB: rSlate * (1 - r1Share),
-      other,
-      modeTurnout,
-      modeDemSlate: modeDem,
-      modeRepSlate: modeRep,
-      baselineConfidence: confidence,
+      other: p.assem27_baseline_other || 0,
+      modeTurnout: asmModeTurnout,
+      modeDemSlate: asmModeDem,
+      modeRepSlate: asmModeRep,
+      baselineConfidence: asmConfidence,
+
+      // Senate
+      senTurnout: senTotal,
+      senD,
+      senR,
+      senOther,
+      senModeTurnout,
+      senModeDem,
+      senModeRep,
+      senateBaselineConfidence: senConfidence,
     });
   }
 
   return { precincts, geojson: fc, warnings };
+}
+
+function coerceConfidence(upstream: string | undefined): PrecinctBaseline["baselineConfidence"] {
+  const v = (upstream ?? "modeled").toLowerCase();
+  if (v.includes("real")) return "Certified";
+  if (v === "modeled") return "Modeled";
+  if (v === "estimated" || v === "interpolated") return "Estimated";
+  if (v === "calibrated") return "Derived";
+  return "Modeled";
 }
 
 function safeRatio(a: number, b: number, fallback: number): number {

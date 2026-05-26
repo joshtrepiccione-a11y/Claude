@@ -50,43 +50,47 @@ export function targetsToCSV(rows: TargetRow[]): string {
 
 export function precinctsToCSV(rows: PrecinctRow[]): string {
   const headers = [
-    "Precinct",
-    "Municipality",
-    "County",
-    "Registered Voters",
-    "Baseline Turnout",
-    "Baseline Dem A",
-    "Baseline Dem B",
-    "Baseline Rep A",
-    "Baseline Rep B",
-    "Scenario Dem A",
-    "Scenario Dem B",
-    "Scenario Rep A",
-    "Scenario Rep B",
-    "Net Vote Swing (D)",
-    "Confidence",
+    "Precinct", "Municipality", "County",
+    "Registered Voters (Estimated)",
+    // Assembly columns
+    "Assembly Baseline Turnout",
+    "Assembly Baseline Dem A", "Assembly Baseline Dem B",
+    "Assembly Baseline Rep A", "Assembly Baseline Rep B",
+    "Assembly Scenario Dem A", "Assembly Scenario Dem B",
+    "Assembly Scenario Rep A", "Assembly Scenario Rep B",
+    "Assembly Net Vote Swing (D)",
+    "Assembly Baseline Confidence",
+    // Senate columns
+    "Senate Baseline Turnout",
+    "Senate Baseline D", "Senate Baseline R",
+    "Senate Scenario D", "Senate Scenario R",
+    "Senate Net Vote Swing (D)",
+    "Senate Baseline Confidence",
+    // Ticket-level
+    "Combined Net D Opportunity",
   ];
   const lines = [headers.join(",")];
   for (const r of rows) {
     const p = r.baseline;
     const s = r.scenario;
+    const ss = r.senateScenario;
     lines.push(
       [
-        csv(p.precinctName),
-        csv(p.municipality),
-        csv(p.county),
+        csv(p.precinctName), csv(p.municipality), csv(p.county),
         Math.round(p.registeredVoters),
         Math.round(p.baselineTurnout),
-        Math.round(p.demA),
-        Math.round(p.demB),
-        Math.round(p.repA),
-        Math.round(p.repB),
-        Math.round(s.demA),
-        Math.round(s.demB),
-        Math.round(s.repA),
-        Math.round(s.repB),
+        Math.round(p.demA), Math.round(p.demB),
+        Math.round(p.repA), Math.round(p.repB),
+        Math.round(s.demA), Math.round(s.demB),
+        Math.round(s.repA), Math.round(s.repB),
         Math.round(r.netVoteSwingD),
         csv(p.baselineConfidence),
+        Math.round(p.senTurnout),
+        Math.round(p.senD), Math.round(p.senR),
+        Math.round(ss.d), Math.round(ss.r),
+        Math.round(r.senateNetVoteSwingD),
+        csv(p.senateBaselineConfidence),
+        Math.round(r.netVoteOpportunity),
       ].join(","),
     );
   }

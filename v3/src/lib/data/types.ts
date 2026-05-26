@@ -1,9 +1,8 @@
 // Core data types for V3.
 //
-// These types describe an "Assembly-first" view of the race. They are derived
-// from the upstream GeoJSON produced by scripts/build_ld8.py (whose schema is
-// retained in v2/src/data/types.ts) but reshaped to make the Assembly slate
-// the primary unit of analysis.
+// The 2027 LD8 ballot includes a Senate race (single-seat) AND an Assembly
+// race (two-seat slate). These types model both, plus a combined ticket
+// (0..3 D seats, 0..3 R seats) derived from the two race outcomes.
 
 import type {
   ConfidenceLabel,
@@ -14,72 +13,94 @@ import type {
 
 export type { VoteModeId, ConfidenceLabel, RecommendedAction, StrategicCategory } from "./config";
 
+export type Party = "D" | "R";
+
 export type ModeBreakdown<T = number> = Record<VoteModeId, T>;
 
-/** Baseline (untouched) values for a single precinct. */
+// ─────────────────────────────────────────────────────────────
+// Baseline (per precinct)
+// ─────────────────────────────────────────────────────────────
+
+/** Baseline (untouched) values for a single precinct, for BOTH races. */
 export interface PrecinctBaseline {
   // Identity
-  precinctId: string;       // Unique id (defaults to "precinct" name).
+  precinctId: string;
   precinctName: string;
   municipality: string;
   county: string;
 
   // Turnout & registration
-  registeredVoters: number; // From upstream voter file (modeled if missing).
-  baselineTurnout: number;  // Total Assembly ballots cast in baseline.
+  // Registered voters is approximated from turnout when no voter file is
+  // attached — see `load.ts`. Tagged with `registrationConfidence`.
+  registeredVoters: number;
+  registrationConfidence: ConfidenceLabel;
 
-  // Baseline candidate votes
-  demA: number;             // Democratic Candidate A votes
-  demB: number;             // Democratic Candidate B votes
-  repA: number;             // Republican Candidate A votes
-  repB: number;             // Republican Candidate B votes
+  // ── Assembly race (two-vote slate; voters may bullet vote)
+  baselineTurnout: number;          // Total ballots that cast >=1 Assembly vote.
+  demA: number; demB: number;
+  repA: number; repB: number;
   other: number;
+  modeTurnout: ModeBreakdown;       // Assembly ballots per vote mode.
+  modeDemSlate: ModeBreakdown;      // Sum of both D candidates per mode.
+  modeRepSlate: ModeBreakdown;      // Sum of both R candidates per mode.
 
-  // Vote-mode breakdown of total Assembly turnout (counts).
-  modeTurnout: ModeBreakdown;
+  // ── Senate race (single seat; one vote per voter)
+  senTurnout: number;               // Ballots that cast a Senate vote.
+  senD: number; senR: number; senOther: number;
+  senModeTurnout: ModeBreakdown;
+  senModeDem: ModeBreakdown;
+  senModeRep: ModeBreakdown;
 
-  // Vote-mode breakdown of D and R slate two-vote totals.
-  // (Each voter may cast up to two Assembly votes.)
-  modeDemSlate: ModeBreakdown;
-  modeRepSlate: ModeBreakdown;
-
-  // Provenance / data confidence for this precinct's baseline.
-  baselineConfidence: ConfidenceLabel;
+  // Provenance for each race's baseline.
+  baselineConfidence: ConfidenceLabel;       // Assembly baseline confidence.
+  senateBaselineConfidence: ConfidenceLabel; // Senate baseline confidence.
 }
 
-/** Result of running the active scenario for a single precinct. */
-export interface PrecinctScenario {
-  // Scaled candidate values after applying scenario assumptions.
-  demA: number;
-  demB: number;
-  repA: number;
-  repB: number;
+// ─────────────────────────────────────────────────────────────
+// Scenario results (per precinct)
+// ─────────────────────────────────────────────────────────────
+
+export interface PrecinctScenarioAssembly {
+  demA: number; demB: number;
+  repA: number; repB: number;
   turnout: number;
   modeTurnout: ModeBreakdown;
-  // Slate totals (sum of two candidates).
-  demSlate: number;
-  repSlate: number;
-  // Mode-broken slate totals for the scenario.
+  demSlate: number; repSlate: number;
   modeDemSlate: ModeBreakdown;
   modeRepSlate: ModeBreakdown;
+}
+
+export interface PrecinctScenarioSenate {
+  d: number; r: number; other: number;
+  turnout: number;
+  modeTurnout: ModeBreakdown;
+  modeDem: ModeBreakdown;
+  modeRep: ModeBreakdown;
 }
 
 /** Combined per-precinct row used by the UI. */
 export interface PrecinctRow {
   baseline: PrecinctBaseline;
-  scenario: PrecinctScenario;
-  // Derived: scenario - baseline, in Democratic-net votes.
-  netVoteSwingD: number;
-  // Slate margins (D - R), percent of total slate votes.
-  baselineSlateMarginPct: number;
-  scenarioSlateMarginPct: number;
-  // Strategic classification + recommendation under the current scenario.
+
+  scenario: PrecinctScenarioAssembly;
+  senateScenario: PrecinctScenarioSenate;
+
+  // Assembly-derived fields (kept for back-compat with existing UI).
+  netVoteSwingD: number;                    // Assembly slate D-net swing.
+  baselineSlateMarginPct: number;           // Assembly baseline margin %.
+  scenarioSlateMarginPct: number;           // Assembly scenario margin %.
+
+  // Senate-derived fields.
+  senateBaselineMarginPct: number;
+  senateScenarioMarginPct: number;
+  senateNetVoteSwingD: number;
+
+  // Strategic classification + recommendation (Assembly-driven).
   category: StrategicCategory;
   action: RecommendedAction;
-  // Vote mode where the campaign should focus effort.
   voteModePriority: VoteModeId;
-  // Net vote opportunity for the Democratic slate (positive = D gain available).
-  netVoteOpportunity: number;
+  netVoteOpportunity: number;               // Sum of Senate + Assembly D-net swing.
+
   // Component scores (0-100).
   persuasionScore: number;
   turnoutScore: number;
@@ -88,43 +109,33 @@ export interface PrecinctRow {
   edScore: number;
 }
 
-/** District-level rollup of an entire scenario. */
-export interface DistrictResult {
-  baseline: SlateTotals;
-  scenario: SlateTotals;
-  // Vote gap to elect ONE Assembly candidate (the higher D candidate over the
-  // lower R candidate, if D is behind). Zero if already elected.
-  votesNeededToElectOne: number;
-  votesNeededToElectBoth: number;
-  // Whether the active scenario already elects 1 / 2 D candidates.
-  electsOne: boolean;
-  electsBoth: boolean;
-  // Net D-slate vote gain (scenario - baseline).
-  netSlateGain: number;
-  // Top finisher ordering and seat outcome under the scenario.
-  finishers: CandidateFinisher[];
-  seats: { D: number; R: number };
-  // Margin separating the second-place winner from the third-place loser.
-  secondSeatMargin: number;
+// ─────────────────────────────────────────────────────────────
+// District rollups
+// ─────────────────────────────────────────────────────────────
+
+export interface CandidateTotalsAsm {
+  dA: number; dB: number; rA: number; rB: number; other: number;
 }
 
-export interface CandidateTotals {
-  dA: number;
-  dB: number;
-  rA: number;
-  rB: number;
-  other: number;
-}
-
-export interface SlateTotals extends CandidateTotals {
+export interface AssemblyTotals extends CandidateTotalsAsm {
   demSlate: number;
   repSlate: number;
-  totalBallots: number;       // Number of voters who cast >=1 Assembly vote.
+  totalBallots: number;       // Voters who cast >=1 Assembly vote.
   totalSlateVotes: number;    // Sum of all candidate votes (~ 2 * ballots).
   slateMarginVotes: number;   // demSlate - repSlate
-  slateMarginPct: number;     // slateMarginVotes / totalSlateVotes * 100
+  slateMarginPct: number;
   modeDemSlate: ModeBreakdown;
   modeRepSlate: ModeBreakdown;
+  modeTurnout: ModeBreakdown;
+}
+
+export interface SenateTotals {
+  d: number; r: number; other: number;
+  totalBallots: number;
+  marginVotes: number;        // d - r
+  marginPct: number;
+  modeDem: ModeBreakdown;
+  modeRep: ModeBreakdown;
   modeTurnout: ModeBreakdown;
 }
 
@@ -136,32 +147,82 @@ export interface CandidateFinisher {
   seated: boolean;
 }
 
-type Party = "D" | "R";
+/** Combined district-level result for both races + ticket rollup. */
+export interface DistrictResult {
+  // Assembly: existing surface preserved for back-compat with V3 consumers.
+  baseline: AssemblyTotals;
+  scenario: AssemblyTotals;
+  votesNeededToElectOne: number;
+  votesNeededToElectBoth: number;
+  electsOne: boolean;
+  electsBoth: boolean;
+  netSlateGain: number;
+  finishers: CandidateFinisher[];
+  // Assembly-only seat count (0..2).
+  seats: { D: number; R: number };
+  secondSeatMargin: number;
 
-/** The full scenario assumption set. */
+  // Senate.
+  senate: {
+    baseline: SenateTotals;
+    scenario: SenateTotals;
+    votesNeededD: number;       // Votes D needs to win Senate. 0 if already winning.
+    votesNeededR: number;       // Votes R needs (for the inverse view).
+    electsD: boolean;
+    netGain: number;            // scenario - baseline (D-net votes).
+  };
+
+  // Full ticket combines both races: each entry in 0..3.
+  ticket: {
+    D: number;          // 0..3 (Senate seat counts 1; Assembly each 1)
+    R: number;          // 0..3
+    senateWinner: Party | "tie";
+    summary: string;    // e.g. "D 3 / R 0", "D 1 / R 2"
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
+// Scenario assumptions
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Scenario assumptions cover BOTH races. Senate and Assembly party swings
+ * are split because the two races have different candidates and different
+ * drop-off dynamics. Mode-margin swings (vbm/early/ed) are SHARED because
+ * they describe campaign-wide field/mail effects that move all D candidates
+ * the same direction in a given mode.
+ */
 export interface ScenarioAssumptions {
   // Districtwide turnout multiplier delta (e.g. +0.05 = +5% turnout).
   turnoutDelta: number;
-  // Slate-level percentage-point swings (D adds, R subtracts of total share).
-  demSlateSwing: number;
-  repSlateSwing: number;
-  // Candidate-specific overperformance (percent of own-slate added to that candidate).
+
+  // Slate swings — Assembly (slate share, percentage points).
+  asmDemSwing: number;
+  asmRepSwing: number;
+  // Slate swings — Senate (single-seat margin share, percentage points).
+  senDemSwing: number;
+  senRepSwing: number;
+
+  // Candidate-specific overperformance (percent of own-slate added to that
+  // candidate, Assembly only — Senate is single-seat).
   candidateAAdjustment: number;
   candidateBAdjustment: number;
-  // Bullet voting and split ticket: 0..1 fractions
+
+  // Bullet voting / split ticket: Assembly-only behaviours.
   bulletVoteRate: number;
   splitTicketRate: number;
-  // Vote-mode share shifts: how much of total ballots come from each mode.
-  // These add to 1 after normalisation; UI warns if user-supplied values don't.
+
+  // Vote-mode share overrides (apply to both races' turnout-mode mix).
   vbmShare: number;
   earlyShare: number;
   edShare: number;
-  // Mode-specific margin swings (extra percentage points to D in each mode).
+
+  // Mode-specific margin swings (extra pp to D in each mode). Shared.
   vbmMarginSwing: number;
   earlyMarginSwing: number;
   edMarginSwing: number;
-  // Optional overrides keyed by municipality or precinct id. Values are
-  // additional percentage-point D swings applied on top of districtwide swing.
+
+  // Optional muni/precinct overrides — extra pp D swing on top of district.
   municipalityOverrides: Record<string, number>;
   precinctOverrides: Record<string, number>;
 }
