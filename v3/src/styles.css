@@ -1,0 +1,23 @@
+/* V3 custom CSS — most styling is Tailwind utilities in components. */
+
+html, body, #root { height: 100%; }
+body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+
+/* Leaflet z-index fix vs. Tailwind sticky elements. */
+.leaflet-container { z-index: 0; background: #eef2f7; }
+.leaflet-pane, .leaflet-top, .leaflet-bottom { z-index: 1; }
+
+/* Subtle scrollbars in panels. */
+.thin-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.thin-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.thin-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* Focus ring polish for keyboard users. */
+:focus-visible { outline: 2px solid #3b6cb8; outline-offset: 2px; border-radius: 4px; }
+
+/* Print view for Report tab. */
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+  .print-page { box-shadow: none !important; border: none !important; }
+}
