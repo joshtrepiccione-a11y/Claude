@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Veterans Roofing — Brand Guide</title>
+<style>
+  @page {
+    size: Letter;
+    margin: 0;
+  }
+
+  :root {
+    --navy:    #0B2545;
+    --red:     #B7202E;
+    --white:   #FFFFFF;
+    --slate:   #3D4A5C;
+    --steel:   #B8C2CC;
+    --bone:    #F4F1EA;
+    --olive:   #54593C;
+    --ink:     #1A1F2B;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    color: var(--ink);
+    background: var(--bone);
+    font-size: 9px;
+    line-height: 1.35;
+  }
+
+  .page {
+    width: 8.5in;
+    height: 11in;
+    padding: 0.35in 0.4in;
+    background:
+      radial-gradient(circle at 100% 0%, rgba(183,32,46,0.04) 0, transparent 35%),
+      radial-gradient(circle at 0% 100%, rgba(11,37,69,0.05) 0, transparent 40%),
+      var(--bone);
+    position: relative;
+  }
+
+  /* ============ HEADER ============ */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 10px;
+    border-bottom: 3px solid var(--navy);
+    position: relative;
+  }
+  .header::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: -7px;
+    height: 2px;
+    background: var(--red);
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .mark {
+    width: 56px; height: 56px;
+  }
+
+  .wordmark {
+    font-family: 'Georgia', serif;
+    font-weight: 900;
+  }
+  .wordmark .v1 {
+    display: block;
+    font-size: 22px;
+    letter-spacing: 1px;
+    color: var(--navy);
+    line-height: 1;
+    text-transform: uppercase;
+  }
+  .wordmark .v2 {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--red);
+    margin-top: 3px;
+    text-transform: uppercase;
+    font-weight: 700;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  .header-right {
+    text-align: right;
+    font-size: 8px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--slate);
+  }
+  .header-right .doc-title {
+    display: block;
+    font-size: 14px;
+    letter-spacing: 4px;
+    color: var(--navy);
+    font-weight: 800;
+  }
+  .header-right .doc-sub {
+    display: block;
+    margin-top: 2px;
+    color: var(--red);
+    font-weight: 700;
+  }
+
+  /* ============ HERO STRIP ============ */
+  .hero {
+    margin-top: 20px;
+    padding: 14px 18px;
+    background: var(--navy);
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 60%;
+    background:
+      repeating-linear-gradient(135deg,
+        rgba(255,255,255,0.04) 0 6px,
+        transparent 6px 12px);
+  }
+  .hero .tagline {
+    font-family: 'Georgia', serif;
+    font-style: italic;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    z-index: 1;
+  }
+  .hero .tagline .accent { color: #E94B5A; font-style: normal; }
+  .hero .stars {
+    display: flex; gap: 4px; z-index: 1;
+  }
+  .hero .stars span {
+    width: 10px; height: 10px;
+    background: var(--red);
+    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  }
+
+  /* ============ SECTION TITLES ============ */
+  .section-title {
+    font-size: 9px;
+    letter-spacing: 3px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--navy);
+    margin-bottom: 6px;
+    padding-bottom: 3px;
+    border-bottom: 1px solid var(--steel);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .section-title::before {
+    content: "";
+    width: 8px; height: 8px;
+    background: var(--red);
+    display: inline-block;
+  }
+
+  /* ============ GRID ============ */
+  .grid {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: 1.05fr 1fr;
+    gap: 18px;
+  }
+
+  /* === Logo block === */
+  .logo-suite {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .logo-tile {
+    border: 1px solid var(--steel);
+    padding: 12px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 80px;
+    background: var(--white);
+  }
+  .logo-tile.dark { background: var(--navy); }
+  .logo-tile .label {
+    font-size: 7px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--slate);
+  }
+  .logo-tile.dark .label { color: var(--steel); }
+  .logo-tile .mini-mark { width: 40px; height: 40px; }
+  .logo-tile .mini-word {
+    font-family: 'Georgia', serif;
+    font-weight: 900;
+    font-size: 11px;
+    color: var(--navy);
+    letter-spacing: 0.5px;
+  }
+  .logo-tile.dark .mini-word { color: var(--white); }
+
+  .clearspace {
+    font-size: 7.5px;
+    color: var(--slate);
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+  .clearspace strong { color: var(--navy); }
+
+  /* === Color palette === */
+  .swatches {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .swatch {
+    border: 1px solid var(--steel);
+    overflow: hidden;
+  }
+  .swatch .chip {
+    height: 42px;
+    position: relative;
+  }
+  .swatch .meta {
+    padding: 5px 6px;
+    background: var(--white);
+  }
+  .swatch .name {
+    font-size: 7.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--navy);
+  }
+  .swatch .code {
+    font-size: 6.5px;
+    color: var(--slate);
+    font-family: 'Courier New', monospace;
+    margin-top: 1px;
+  }
+
+  .palette-note {
+    font-size: 7.5px;
+    color: var(--slate);
+    margin-top: 5px;
+    line-height: 1.5;
+  }
+
+  /* === Typography === */
+  .type-row {
+    border-left: 3px solid var(--red);
+    padding: 6px 0 6px 10px;
+    margin-bottom: 8px;
+  }
+  .type-row .role {
+    font-size: 7px;
+    letter-spacing: 2px;
+    color: var(--red);
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .type-row .sample {
+    margin-top: 2px;
+  }
+  .type-row .specs {
+    font-size: 7px;
+    color: var(--slate);
+    margin-top: 2px;
+    letter-spacing: 0.3px;
+  }
+  .type-row.heading .sample {
+    font-family: 'Georgia', serif;
+    font-weight: 900;
+    font-size: 19px;
+    color: var(--navy);
+    line-height: 1;
+    letter-spacing: 0.3px;
+  }
+  .type-row.sub .sample {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11px;
+    color: var(--navy);
+    letter-spacing: 3px;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+  .type-row.body .sample {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9px;
+    color: var(--ink);
+    line-height: 1.45;
+  }
+
+  /* === Voice === */
+  .voice-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .voice-col h4 {
+    font-size: 8px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-weight: 800;
+    margin-bottom: 4px;
+  }
+  .voice-col.do h4 { color: #2E7D4F; }
+  .voice-col.dont h4 { color: var(--red); }
+  .voice-col ul {
+    list-style: none;
+    font-size: 7.5px;
+    line-height: 1.5;
+    color: var(--ink);
+  }
+  .voice-col li {
+    padding-left: 10px;
+    position: relative;
+    margin-bottom: 2px;
+  }
+  .voice-col.do li::before {
+    content: "+"; position: absolute; left: 0;
+    color: #2E7D4F; font-weight: 800;
+  }
+  .voice-col.dont li::before {
+    content: "×"; position: absolute; left: 0;
+    color: var(--red); font-weight: 800;
+  }
+
+  /* === Brand pillars === */
+  .pillars {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .pillar {
+    background: var(--white);
+    border: 1px solid var(--steel);
+    border-top: 3px solid var(--navy);
+    padding: 8px;
+    text-align: center;
+  }
+  .pillar:nth-child(2) { border-top-color: var(--red); }
+  .pillar:nth-child(3) { border-top-color: var(--olive); }
+  .pillar .icon {
+    width: 22px; height: 22px; margin: 0 auto 4px;
+    display: block;
+  }
+  .pillar .pname {
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--navy);
+  }
+  .pillar .pdesc {
+    font-size: 7px;
+    color: var(--slate);
+    margin-top: 3px;
+    line-height: 1.4;
+  }
+
+  /* === Imagery & Patterns === */
+  .imagery {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+  }
+  .pattern-tile {
+    height: 50px;
+    border: 1px solid var(--steel);
+    position: relative;
+    overflow: hidden;
+  }
+  .pat-chevron {
+    background:
+      repeating-linear-gradient(135deg,
+        var(--navy) 0 6px,
+        var(--red) 6px 8px,
+        var(--navy) 8px 14px);
+  }
+  .pat-stars {
+    background: var(--navy);
+    position: relative;
+  }
+  .pat-stars::before {
+    content: "★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★";
+    position: absolute; inset: 0;
+    color: var(--white);
+    font-size: 10px;
+    line-height: 14px;
+    letter-spacing: 4px;
+    padding: 4px;
+    opacity: 0.85;
+  }
+  .pat-shingles {
+    background:
+      linear-gradient(var(--slate), var(--slate));
+    background-size: 12px 8px;
+    position: relative;
+  }
+  .pat-shingles::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(90deg, rgba(0,0,0,0.25) 1px, transparent 1px),
+      linear-gradient(0deg, rgba(255,255,255,0.08) 1px, transparent 1px);
+    background-size: 14px 7px;
+  }
+  .pat-label {
+    position: absolute;
+    bottom: 3px; left: 4px;
+    font-size: 6.5px;
+    letter-spacing: 1px;
+    color: var(--white);
+    text-transform: uppercase;
+    background: rgba(0,0,0,0.45);
+    padding: 1px 4px;
+  }
+
+  /* === FOOTER === */
+  .footer {
+    position: absolute;
+    left: 0.4in; right: 0.4in;
+    bottom: 0.3in;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 8px;
+    border-top: 1px solid var(--steel);
+    font-size: 7px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--slate);
+  }
+  .footer .center { color: var(--navy); font-weight: 800; }
+  .footer .right { color: var(--red); font-weight: 800; }
+
+  .row {
+    display: grid;
+    gap: 16px;
+    margin-top: 14px;
+  }
+  .row.two { grid-template-columns: 1fr 1fr; }
+  .row.three { grid-template-columns: 1fr 1fr 1fr; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <!-- Primary mark: shield with chevron + star -->
+      <svg class="mark" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="navyGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#143266"/>
+            <stop offset="100%" stop-color="#0B2545"/>
+          </linearGradient>
+        </defs>
+        <path d="M50 4 L92 16 L92 52 C92 76 74 92 50 98 C26 92 8 76 8 52 L8 16 Z"
+              fill="url(#navyGrad)" stroke="#0B2545" stroke-width="2"/>
+        <!-- Red roof chevron -->
+        <path d="M16 56 L50 28 L84 56 L84 64 L50 36 L16 64 Z" fill="#B7202E"/>
+        <!-- White star -->
+        <path d="M50 60 L54 71 L66 71 L56 78 L60 89 L50 82 L40 89 L44 78 L34 71 L46 71 Z"
+              fill="#FFFFFF"/>
+      </svg>
+      <div class="wordmark">
+        <span class="v1">Veterans Roofing</span>
+        <span class="v2">Built to Serve · Ready to Protect</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="doc-title">Brand Guide</span>
+      <span class="doc-sub">v1.0 · One-Page Standard</span>
+    </div>
+  </div>
+
+  <!-- HERO STRIP -->
+  <div class="hero">
+    <div class="tagline">
+      "Honor overhead. <span class="accent">Integrity underneath.</span>"
+    </div>
+    <div class="stars">
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+  </div>
+
+  <!-- ROW 1: Logo + Color -->
+  <div class="grid">
+
+    <!-- LOGO BLOCK -->
+    <div>
+      <div class="section-title">01 · Logo System</div>
+      <div class="logo-suite">
+        <div class="logo-tile">
+          <svg class="mini-mark" viewBox="0 0 100 100">
+            <path d="M50 4 L92 16 L92 52 C92 76 74 92 50 98 C26 92 8 76 8 52 L8 16 Z" fill="#0B2545"/>
+            <path d="M16 56 L50 28 L84 56 L84 64 L50 36 L16 64 Z" fill="#B7202E"/>
+            <path d="M50 60 L54 71 L66 71 L56 78 L60 89 L50 82 L40 89 L44 78 L34 71 L46 71 Z" fill="#FFFFFF"/>
+          </svg>
+          <span class="label">Primary Mark</span>
+        </div>
+        <div class="logo-tile">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <svg class="mini-mark" style="width:26px;height:26px;" viewBox="0 0 100 100">
+              <path d="M50 4 L92 16 L92 52 C92 76 74 92 50 98 C26 92 8 76 8 52 L8 16 Z" fill="#0B2545"/>
+              <path d="M16 56 L50 28 L84 56 L84 64 L50 36 L16 64 Z" fill="#B7202E"/>
+              <path d="M50 60 L54 71 L66 71 L56 78 L60 89 L50 82 L40 89 L44 78 L34 71 L46 71 Z" fill="#FFFFFF"/>
+            </svg>
+            <span class="mini-word">VETERANS<br/>ROOFING</span>
+          </div>
+          <span class="label">Horizontal Lockup</span>
+        </div>
+        <div class="logo-tile dark">
+          <svg class="mini-mark" viewBox="0 0 100 100">
+            <path d="M50 4 L92 16 L92 52 C92 76 74 92 50 98 C26 92 8 76 8 52 L8 16 Z" fill="#FFFFFF"/>
+            <path d="M16 56 L50 28 L84 56 L84 64 L50 36 L16 64 Z" fill="#B7202E"/>
+            <path d="M50 60 L54 71 L66 71 L56 78 L60 89 L50 82 L40 89 L44 78 L34 71 L46 71 Z" fill="#0B2545"/>
+          </svg>
+          <span class="label">Reversed</span>
+        </div>
+        <div class="logo-tile">
+          <svg class="mini-mark" viewBox="0 0 100 100">
+            <path d="M50 4 L92 16 L92 52 C92 76 74 92 50 98 C26 92 8 76 8 52 L8 16 Z" fill="none" stroke="#0B2545" stroke-width="4"/>
+            <path d="M16 56 L50 28 L84 56 L84 64 L50 36 L16 64 Z" fill="#0B2545"/>
+            <path d="M50 60 L54 71 L66 71 L56 78 L60 89 L50 82 L40 89 L44 78 L34 71 L46 71 Z" fill="#0B2545"/>
+          </svg>
+          <span class="label">1-Color / Mono</span>
+        </div>
+      </div>
+      <p class="clearspace">
+        <strong>Clear space:</strong> Reserve a margin equal to the height of the star around every side of the mark. <strong>Minimum size:</strong> 0.4 in / 30 px wide. Never recolor, stretch, rotate, or place the mark on busy imagery without a solid plate.
+      </p>
+    </div>
+
+    <!-- COLOR BLOCK -->
+    <div>
+      <div class="section-title">02 · Color Palette</div>
+      <div class="swatches">
+        <div class="swatch">
+          <div class="chip" style="background:#0B2545;"></div>
+          <div class="meta">
+            <div class="name">Service Navy</div>
+            <div class="code">#0B2545<br/>RGB 11·37·69<br/>PMS 282 C</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="chip" style="background:#B7202E;"></div>
+          <div class="meta">
+            <div class="name">Valor Red</div>
+            <div class="code">#B7202E<br/>RGB 183·32·46<br/>PMS 187 C</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="chip" style="background:#FFFFFF; border-bottom:1px solid var(--steel);"></div>
+          <div class="meta">
+            <div class="name">Honor White</div>
+            <div class="code">#FFFFFF<br/>RGB 255·255·255<br/>Paper</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="chip" style="background:#3D4A5C;"></div>
+          <div class="meta">
+            <div class="name">Slate Steel</div>
+            <div class="code">#3D4A5C<br/>RGB 61·74·92<br/>Cool 80%</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="chip" style="background:#B8C2CC;"></div>
+          <div class="meta">
+            <div class="name">Hangar Gray</div>
+            <div class="code">#B8C2CC<br/>RGB 184·194·204<br/>Tint</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="chip" style="background:#F4F1EA;"></div>
+          <div class="meta">
+            <div class="name">Field Bone</div>
+            <div class="code">#F4F1EA<br/>RGB 244·241·234<br/>Paper Tint</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="chip" style="background:#54593C;"></div>
+          <div class="meta">
+            <div class="name">Tactical Olive</div>
+            <div class="code">#54593C<br/>RGB 84·89·60<br/>Accent</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="chip" style="background:#1A1F2B;"></div>
+          <div class="meta">
+            <div class="name">Asphalt Ink</div>
+            <div class="code">#1A1F2B<br/>RGB 26·31·43<br/>Body Text</div>
+          </div>
+        </div>
+      </div>
+      <p class="palette-note">
+        <strong style="color:var(--navy);">Ratio 60/30/10 →</strong> Navy dominates (60%) for trust &amp; structure; Slate/Bone neutrals carry (30%); Valor Red is reserved for CTAs, accents, and the chevron (10%).
+      </p>
+    </div>
+  </div>
+
+  <!-- ROW 2: Typography + Voice -->
+  <div class="row two">
+    <!-- TYPOGRAPHY -->
+    <div>
+      <div class="section-title">03 · Typography</div>
+      <div class="type-row heading">
+        <div class="role">Display / H1 — Georgia Black</div>
+        <div class="sample">Roofs Built on Duty.</div>
+        <div class="specs">Serif · 48–72 pt · Tracking +10 · Title Case · Use for hero statements</div>
+      </div>
+      <div class="type-row sub">
+        <div class="role">Subhead / Eyebrow — Helvetica Neue Bold</div>
+        <div class="sample">South Jersey · Since Day One</div>
+        <div class="specs">Sans · 11–14 pt · Tracking +300 · Uppercase · Accent in Valor Red</div>
+      </div>
+      <div class="type-row body">
+        <div class="role">Body — Helvetica Neue Regular</div>
+        <div class="sample">Veteran-owned and OC Platinum Preferred, we protect homes from Cape May to Ocean County with military-grade precision and a lifetime of pride in the work.</div>
+        <div class="specs">Sans · 9–11 pt · Line-height 1.45 · Asphalt Ink on Bone</div>
+      </div>
+    </div>
+
+    <!-- VOICE -->
+    <div>
+      <div class="section-title">04 · Voice &amp; Tone</div>
+      <p style="font-size:7.5px; color:var(--slate); margin-bottom:6px; line-height:1.5;">
+        <strong style="color:var(--navy);">Personality:</strong> Steady, plainspoken, dependable — the neighbor who shows up early and finishes the job right. Speak with a veteran's quiet confidence; never boast.
+      </p>
+      <div class="voice-grid">
+        <div class="voice-col do">
+          <h4>Do</h4>
+          <ul>
+            <li>Lead with service, integrity, precision</li>
+            <li>Use direct, declarative sentences</li>
+            <li>Reference South Jersey by name</li>
+            <li>Cite proof: 500+ 5-star reviews, OC Platinum</li>
+            <li>Honor the customer's home as a mission</li>
+          </ul>
+        </div>
+        <div class="voice-col dont">
+          <h4>Don't</h4>
+          <ul>
+            <li>Use jingoism or salute-and-slogan clichés</li>
+            <li>Talk down to customers or jargon-stack</li>
+            <li>Over-promise; under-deliver</li>
+            <li>Use emojis or all-caps shouting in body</li>
+            <li>Mix military imagery with combat tone</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 3: Brand Pillars + Imagery -->
+  <div class="row two">
+    <!-- PILLARS -->
+    <div>
+      <div class="section-title">05 · Brand Pillars</div>
+      <div class="pillars">
+        <div class="pillar">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="#0B2545" stroke-width="2">
+            <path d="M12 2 L21 6 V12 C21 17 17 21 12 22 C7 21 3 17 3 12 V6 Z"/>
+            <path d="M9 12 L11 14 L15 10"/>
+          </svg>
+          <div class="pname">Duty</div>
+          <div class="pdesc">Show up. Stand by the work. Answer when called.</div>
+        </div>
+        <div class="pillar">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="#B7202E" stroke-width="2">
+            <path d="M3 9 L12 3 L21 9 V20 H3 Z"/>
+            <path d="M9 20 V13 H15 V20"/>
+          </svg>
+          <div class="pname">Protection</div>
+          <div class="pdesc">A home defended is a family at peace.</div>
+        </div>
+        <div class="pillar">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="#54593C" stroke-width="2">
+            <circle cx="12" cy="8" r="5"/>
+            <path d="M8 12 L7 21 L12 18 L17 21 L16 12"/>
+          </svg>
+          <div class="pname">Precision</div>
+          <div class="pdesc">Military-grade craftsmanship, measured twice.</div>
+        </div>
+      </div>
+      <p class="palette-note" style="margin-top:8px;">
+        <strong style="color:var(--navy);">Mission:</strong> To protect South Jersey homes with the honor, precision, and accountability of those who served — one roof, one family, one season at a time.
+      </p>
+    </div>
+
+    <!-- IMAGERY & PATTERNS -->
+    <div>
+      <div class="section-title">06 · Imagery, Pattern &amp; Iconography</div>
+      <div class="imagery">
+        <div class="pattern-tile pat-chevron">
+          <span class="pat-label">Roof Chevron</span>
+        </div>
+        <div class="pattern-tile pat-stars">
+          <span class="pat-label">Star Field</span>
+        </div>
+        <div class="pattern-tile pat-shingles">
+          <span class="pat-label">Shingle Grid</span>
+        </div>
+      </div>
+      <p class="palette-note" style="margin-top:6px;">
+        <strong style="color:var(--navy);">Photography:</strong> Real crew, real homes, real South Jersey skies. Shoot during golden hour; favor low angles that emphasize the ridgeline. Always include a worker — never empty roofs.
+      </p>
+      <p class="palette-note" style="margin-top:4px;">
+        <strong style="color:var(--navy);">Iconography:</strong> Single-weight 2 px strokes, square caps, no fills. Restrict to Navy, Red, or Olive. Avoid generic stock icons and any imagery depicting weapons or combat.
+      </p>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <span class="left">Veterans Roofing · 331 Tilton Rd · Northfield, NJ</span>
+    <span class="center">veteransroofingnj.com</span>
+    <span class="right">(609) 966-9050</span>
+  </div>
+
+</div>
+</body>
+</html>
