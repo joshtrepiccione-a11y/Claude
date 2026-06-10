@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd v2 && npm install && npm run build",
+  "buildCommand": "cd v2 && npm install && npm run build && cd ../v3-clerk && npm install && npm run build && mkdir -p ../v2/dist/clerk && cp -r dist/. ../v2/dist/clerk/",
   "outputDirectory": "v2/dist",
   "installCommand": "echo \"deferring install to buildCommand\""
 }
