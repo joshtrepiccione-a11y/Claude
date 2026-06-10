@@ -1,9 +1,11 @@
 # NJ Legislative District 8
 
-This repo contains two generations of the LD8 election map / scenario tool:
+This repo contains the LD8 election map / scenario tools, plus a County
+Clerk adaptation:
 
 | Version | Path | Stack | Purpose |
 |---------|------|-------|---------|
+| **v3-clerk** | `v3-clerk/` | React + TypeScript + Vite | **2026 Atlantic County Clerk scenario model** — Lisa Bender (D) vs. Joseph J. Giralo (R, incumbent), single-race adaptation of the v3 app calibrated to the certified 2021 Clerk result |
 | **v2** (current) | `v2/` | React + TypeScript + Vite | Campaign intelligence dashboard — Scenario Summary, Path to Victory, Strategic Priority scoring, Ranked Precinct Table, Municipality Dashboard, CSV export, Candidate/Expert modes |
 | v1 (legacy) | `index.html`, `app.js`, `style.css` | Vanilla JS + Leaflet | Original precinct map + scenario sliders, preserved for reference |
 
@@ -16,6 +18,38 @@ cd v2 && npm test                       # vitest suite
 ```
 
 See [`docs/v2-spec.md`](docs/v2-spec.md) for the v2 product spec.
+
+---
+
+## v3-clerk — 2026 Atlantic County Clerk (Bender vs. Giralo)
+
+A single-race fork of the v3 LD8 scenario app for the **2026 Atlantic
+County Clerk** general election: challenger **Lisa Bender (D, Somers
+Point)** vs. incumbent **Joseph J. Giralo (R)**. The race is county-wide,
+covering all 23 Atlantic County municipalities (151 precincts).
+
+```
+cd v3-clerk && npm install && npm run dev   # http://localhost:5173
+cd v3-clerk && npm run build                 # production build → v3-clerk/dist
+```
+
+**Baseline.** Calibrated to the certified 2021 County Clerk result —
+Giralo (R) **43,346** / Lisa Jiampetti (D) **34,930** (R +10.75
+two-party). County sums match the certified totals exactly. Per-precinct
+distribution is interpolated from each precinct's 2024 presidential
+two-party share with a −3.40 pp uniform county-wide shift and a 0.634×
+turnout scale (rebuild with `python3 scripts/build_atlantic_clerk.py`).
+
+**Model.** Tabs: Dashboard (KPIs, projected outcome, county map, path to
+victory), Map (7 layers + precinct drawer), Targets (ranked precinct
+table + CSV), Scenarios (9 presets incl. "2021 Replay" baseline and a
+"Find a Winning Path" heuristic), Report (plain-English campaign memo),
+Data (methodology, coverage, import validation, exports). Headline
+calibration checks: the *2021 Replay* preset reproduces R+10.75; the
+*2024 Presidential Environment* preset closes the gap to ≈R+4; the
+*Balanced Win Path* preset flips the county ≈D+0.75 (~600 votes).
+
+Outputs are a model, not a prediction.
 
 ---
 
