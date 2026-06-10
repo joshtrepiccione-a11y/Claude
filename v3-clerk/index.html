@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Path to Victory — Bender for Atlantic County Clerk 2026</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              navy: {
+                50: "#f1f4f9",
+                100: "#dde4ee",
+                200: "#bcc8dc",
+                300: "#94a4be",
+                400: "#6f80a0",
+                500: "#536584",
+                600: "#3f4f6a",
+                700: "#324057",
+                800: "#1f2a3d",
+                900: "#121a2a",
+                950: "#0a1020",
+              },
+              slate: { 950: "#0b1220" },
+              brand: {
+                dem: "#3b6cb8",
+                rep: "#b8454a",
+                amber: "#c08a2e",
+                purple: "#7e57c2",
+                green: "#3f8f63",
+              },
+            },
+            boxShadow: {
+              card: "0 1px 2px rgba(15,23,42,0.06), 0 1px 3px rgba(15,23,42,0.05)",
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body class="bg-slate-50 text-slate-800 antialiased">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
