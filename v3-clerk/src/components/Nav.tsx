@@ -23,12 +23,12 @@ export function Nav({
     <header className="bg-navy-900 text-white sticky top-0 z-30 shadow">
       <div className="max-w-[1500px] mx-auto px-4 py-2 flex items-center gap-6 flex-wrap">
         <div className="flex items-center gap-2 mr-2 shrink-0">
-          <div className="w-7 h-7 rounded bg-navy-700 flex items-center justify-center text-xs font-bold">
-            P→V
+          <div className="w-8 h-8 rounded-lg bg-navy-700 ring-1 ring-navy-500 flex items-center justify-center text-sm font-bold text-[#d9a441]" style={{ fontFamily: "Georgia, serif" }}>
+            LB
           </div>
           <div className="leading-tight">
-            <div className="font-semibold text-sm tracking-tight">Path to Victory</div>
-            <div className="text-[11px] text-navy-200">Bender for Atlantic County Clerk · 2026</div>
+            <div className="font-semibold text-sm tracking-tight">Bender for County Clerk</div>
+            <div className="text-[11px] text-navy-200">Atlantic County · 2026 · Scenario Model</div>
           </div>
         </div>
 
