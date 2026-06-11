@@ -1,0 +1,11 @@
+# Netlify build configuration.
+# The linked Netlify site is dedicated to the Bender for County Clerk app:
+# v3-clerk deploys standalone at the site root, under its own brand.
+# (The LD8 dashboard remains on Vercel / GitHub Pages.)
+
+[build]
+  command = "cd v3-clerk && npm install && npm run build"
+  publish = "v3-clerk/dist"
+
+[build.environment]
+  NODE_VERSION = "20"

@@ -73,7 +73,7 @@ function Shell() {
       )}
       {state.tab === "data" && <Data rows={computed.rows} warnings={data.warnings} />}
       <footer className="text-center text-xs text-slate-500 py-6 no-print">
-        Path to Victory · Bender for Atlantic County Clerk 2026 · Outputs are modeled, not predictions.
+        Bender for County Clerk · Atlantic County 2026 · Outputs are modeled, not predictions.
       </footer>
     </div>
   );
