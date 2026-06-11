@@ -1,0 +1,10 @@
+# Netlify build configuration — mirrors vercel.json.
+# Builds the v2 LD8 dashboard at the site root and the v3-clerk
+# Atlantic County Clerk scenario model at /clerk/.
+
+[build]
+  command = "cd v2 && npm install && npm run build && cd ../v3-clerk && npm install && npm run build && mkdir -p ../v2/dist/clerk && cp -r dist/. ../v2/dist/clerk/"
+  publish = "v2/dist"
+
+[build.environment]
+  NODE_VERSION = "20"
