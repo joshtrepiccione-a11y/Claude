@@ -22,6 +22,17 @@ export interface CandidateConfig {
   isIncumbent: boolean;
 }
 
+// The party this tool is built for. Drives whether a D-favorable or
+// R-favorable result is shown as "good" (green) in the UI. Flip to "R" when
+// cloning this app for a Republican client.
+export const CLIENT_PARTY: Party = "D";
+
+/** UI tone for a margin, from the client's perspective. */
+export function marginTone(party: Party | null): "good" | "bad" | "neutral" {
+  if (party === null) return "neutral";
+  return party === CLIENT_PARTY ? "good" : "bad";
+}
+
 // 2026 Atlantic County Clerk: ONE county-wide seat, 5-year term.
 export const CANDIDATES: CandidateConfig[] = [
   { id: "clerkD", party: "D", label: "Lisa Bender (D)",        shortLabel: "Bender", isPlaceholder: false, isIncumbent: false },

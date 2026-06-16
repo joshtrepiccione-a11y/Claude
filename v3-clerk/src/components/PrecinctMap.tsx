@@ -33,17 +33,37 @@ export function PrecinctMap({
     return m;
   }, [rows]);
 
+  // Live refs so event handlers and the selection effect always read the
+  // latest values without forcing the GeoJSON layer to be torn down and
+  // rebuilt on every selection/hover (which caused flicker, lost hover state,
+  // and a stale-closure highlight bug).
+  const onSelectRef = useRef(onSelect);
+  const onHoverRef = useRef(onHover);
+  const selectedRef = useRef(selectedPrecinct);
+  const layerModeRef = useRef(layer);
+  const rowByIdRef = useRef(rowById);
+  onSelectRef.current = onSelect;
+  onHoverRef.current = onHover;
+  selectedRef.current = selectedPrecinct;
+  layerModeRef.current = layer;
+  rowByIdRef.current = rowById;
+
   // Initialise map once.
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
     const map = L.map(containerRef.current, {
       preferCanvas: true,
-      attributionControl: false,
       zoomControl: true,
     }).setView([39.47, -74.63], 10);
+    // Basemap attribution is required by CARTO + OpenStreetMap terms.
     L.tileLayer(
       "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",
-      { maxZoom: 18, subdomains: "abcd" },
+      {
+        maxZoom: 18,
+        subdomains: "abcd",
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      },
     ).addTo(map);
     L.tileLayer(
       "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png",
@@ -53,7 +73,8 @@ export function PrecinctMap({
     setTimeout(() => map.invalidateSize(), 100);
   }, []);
 
-  // Build / replace the GeoJSON layer when data or layer-mode changes.
+  // Build / replace the GeoJSON layer only when the data or the colour layer
+  // changes — NOT on selection or hover.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -66,29 +87,28 @@ export function PrecinctMap({
         const id =
           (f?.properties as { precinct?: string } | undefined)?.precinct ?? "";
         const row = rowById.get(id);
-        return styleFor(row, layer, selectedPrecinct === id);
+        return styleFor(row, layer, selectedRef.current === id);
       },
       onEachFeature: (feat, lyr) => {
         const id =
           (feat?.properties as { precinct?: string } | undefined)?.precinct ?? "";
-        const row = rowById.get(id);
         lyr.on({
-          click: () => onSelect(id),
+          click: () => onSelectRef.current(id),
           mouseover: (e) => {
             (e.target as L.Path).setStyle({ weight: 2.5, color: "#0a1020" });
-            onHover?.(id);
+            onHoverRef.current?.(id);
           },
           mouseout: (e) => {
-            const isSelected = selectedPrecinct === id;
+            const row = rowByIdRef.current.get(id);
             (e.target as L.Path).setStyle(
-              styleFor(row, layer, isSelected) as L.PathOptions,
+              styleFor(row, layerModeRef.current, selectedRef.current === id) as L.PathOptions,
             );
-            onHover?.(null);
+            onHoverRef.current?.(null);
           },
         });
         lyr.bindTooltip(
-          row
-            ? `${row.baseline.precinctName} — ${row.baseline.municipality}`
+          rowById.get(id)
+            ? `${rowById.get(id)!.baseline.precinctName} — ${rowById.get(id)!.baseline.municipality}`
             : id,
           { sticky: true, direction: "top", opacity: 0.95 },
         );
@@ -102,7 +122,22 @@ export function PrecinctMap({
     } catch {
       /* no-op */
     }
-  }, [geojson, rowById, layer, selectedPrecinct, onSelect, onHover]);
+  }, [geojson, rowById, layer]);
+
+  // Re-style in place when the selection changes — cheap, no rebuild, no flicker.
+  useEffect(() => {
+    const gj = layerRef.current;
+    if (!gj) return;
+    gj.eachLayer((lyr) => {
+      const feat = (lyr as L.GeoJSON).feature as GeoJSON.Feature | undefined;
+      const id =
+        (feat?.properties as { precinct?: string } | undefined)?.precinct ?? "";
+      const row = rowById.get(id);
+      (lyr as L.Path).setStyle(
+        styleFor(row, layer, selectedPrecinct === id) as L.PathOptions,
+      );
+    });
+  }, [selectedPrecinct, layer, rowById]);
 
   return (
     <div

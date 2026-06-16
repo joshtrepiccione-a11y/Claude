@@ -100,7 +100,7 @@ export function Tooltip({ text, children }: { text: string; children: ReactNode 
       {children}
       <span
         role="tooltip"
-        className="pointer-events-none absolute left-1/2 -translate-x-1/2 mt-2 z-50 hidden group-hover:block w-64 bg-navy-900 text-white text-xs rounded px-2 py-1 leading-snug shadow-lg"
+        className="pointer-events-none absolute left-1/2 -translate-x-1/2 mt-2 z-50 hidden group-hover:block group-focus-within:block w-64 bg-navy-900 text-white text-xs rounded px-2 py-1 leading-snug shadow-lg"
       >
         {text}
       </span>
@@ -109,14 +109,17 @@ export function Tooltip({ text, children }: { text: string; children: ReactNode 
 }
 
 export function InfoIcon({ tip }: { tip: string }) {
+  // Focusable button so the tip is reachable by keyboard (focus) and by tap on
+  // touch devices, not hover-only.
   return (
     <Tooltip text={tip}>
-      <span
-        aria-label="info"
-        className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-slate-200 text-slate-600 text-[10px] font-bold cursor-help"
+      <button
+        type="button"
+        aria-label={tip}
+        className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-slate-200 text-slate-600 text-[10px] font-bold cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-navy-400"
       >
         i
-      </span>
+      </button>
     </Tooltip>
   );
 }
@@ -206,9 +209,11 @@ export function fmtSigned(n: number): string {
 
 export function fmtMargin(pp: number, party?: "D" | "R" | null): string {
   if (!isFinite(pp)) return "—";
-  const sign = pp >= 0 ? "+" : "−";
   const abs = Math.abs(pp).toFixed(1);
-  if (party) return `${party} ${sign === "+" ? "+" : "-"}${abs}`;
+  // When a leading party is attributed, always show that party's lead as a
+  // positive number (e.g. "R +10.8") — never "R -10.8", which misreads as the
+  // winning candidate trailing.
+  if (party) return `${party} +${abs}`;
   if (pp === 0) return `Tied`;
   return `${pp > 0 ? "D" : "R"} +${abs}`;
 }

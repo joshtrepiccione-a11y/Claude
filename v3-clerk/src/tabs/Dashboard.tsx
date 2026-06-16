@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { CountyResult, PrecinctRow } from "../lib/data/types";
-import { CANDIDATES, CONTEST } from "../lib/data/config";
+import { CANDIDATES, CONTEST, marginTone } from "../lib/data/config";
 import {
   Card,
   Empty,
@@ -93,7 +93,7 @@ export function Dashboard({
             label="Baseline Margin (2021)"
             value={fmtMargin(county.baseline.marginPct, baselineMarginParty)}
             hint={`${fmtSigned(county.baseline.marginVotes)} votes`}
-            tone={baselineMarginParty === "D" ? "good" : baselineMarginParty === "R" ? "bad" : "neutral"}
+            tone={marginTone(baselineMarginParty)}
           />
         </Card>
         <Card>
@@ -101,7 +101,7 @@ export function Dashboard({
             label="Scenario Margin"
             value={fmtMargin(county.scenario.marginPct, scenarioMarginParty)}
             hint={`${fmtSigned(county.scenario.marginVotes)} votes`}
-            tone={scenarioMarginParty === "D" ? "good" : scenarioMarginParty === "R" ? "bad" : "neutral"}
+            tone={marginTone(scenarioMarginParty)}
           />
         </Card>
         <Card>
