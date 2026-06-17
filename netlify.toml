@@ -1,11 +1,12 @@
-# Netlify build configuration.
-# The linked Netlify site is dedicated to the Bender for County Clerk app:
-# v3-clerk deploys standalone at the site root, under its own brand.
-# (The LD8 dashboard remains on Vercel / GitHub Pages.)
+# Netlify build configuration for the dedicated Sheriff branch.
+# This branch deploys the "Re-Elect Sheriff O'Donoghue" app (v3-sheriff) at
+# the site root. The Bender/Clerk app lives on its own branch + Netlify site
+# and is not built here. Do not merge this branch into the default branch —
+# it intentionally overrides the root build target.
 
 [build]
-  command = "cd v3-clerk && npm install && npm run build"
-  publish = "v3-clerk/dist"
+  command = "cd v3-sheriff && npm install && npm run build"
+  publish = "v3-sheriff/dist"
 
 [build.environment]
   NODE_VERSION = "20"
