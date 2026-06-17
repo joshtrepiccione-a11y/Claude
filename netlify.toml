@@ -1,12 +1,13 @@
-# Netlify build configuration for the dedicated Sheriff branch.
-# This branch deploys the "Re-Elect Sheriff O'Donoghue" app (v3-sheriff) at
-# the site root. The Bender/Clerk app lives on its own branch + Netlify site
-# and is not built here. Do not merge this branch into the default branch —
-# it intentionally overrides the root build target.
+# Netlify build configuration (repo root).
+# The default branch + the snazzy-liger Netlify site are dedicated to the
+# Bender for County Clerk app (v3-clerk) at the site root. The Sheriff app
+# (v3-sheriff) deploys from its OWN Netlify site using Base directory
+# "v3-sheriff" (see v3-sheriff/netlify.toml) — it does NOT change this root
+# build, so this file is safe on the default branch.
 
 [build]
-  command = "cd v3-sheriff && npm install && npm run build"
-  publish = "v3-sheriff/dist"
+  command = "cd v3-clerk && npm install && npm run build"
+  publish = "v3-clerk/dist"
 
 [build.environment]
   NODE_VERSION = "20"
