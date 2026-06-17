@@ -1,0 +1,10 @@
+# Netlify build config for the standalone "Re-Elect Sheriff O'Donoghue" site.
+# In the Netlify UI, set this site's Base directory to `v3-sheriff` — Netlify
+# then reads this file and builds the app on its own, at the site root.
+
+[build]
+  command = "npm install && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
