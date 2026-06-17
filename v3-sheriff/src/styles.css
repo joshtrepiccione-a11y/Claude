@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom CSS — most styling is Tailwind utilities in components. */
+
+html, body, #root { height: 100%; }
+body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+
+/* Leaflet z-index fix vs. Tailwind sticky elements. */
+.leaflet-container { z-index: 0; background: #eef2f7; }
+.leaflet-pane, .leaflet-top, .leaflet-bottom { z-index: 1; }
+
+/* Subtle scrollbars in panels. */
+.thin-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.thin-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.thin-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* Focus ring polish for keyboard users. */
+:focus-visible { outline: 2px solid #b91c1c; outline-offset: 2px; border-radius: 4px; }
+
+/* Larger tap targets on touch devices (mobile-first). */
+@media (max-width: 767px) {
+  button, [role="tab"], select, input[type="radio"], input[type="checkbox"], a { min-height: 44px; }
+  input[type="range"] { min-height: 44px; }
+}
+.leaflet-container { touch-action: pan-x pan-y; }
+
+/* Print view for Report tab. */
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+  .print-page { box-shadow: none !important; border: none !important; }
+}
