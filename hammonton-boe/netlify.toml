@@ -1,0 +1,11 @@
+# Netlify build config for the standalone "Hammonton School Board — Pullia Vote
+# Patterns" site. In the Netlify UI set this site's Base directory to
+# `hammonton-boe`; Netlify then reads this file and builds the app at the site
+# root.
+
+[build]
+  command = "npm install && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
