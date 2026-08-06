@@ -155,9 +155,16 @@ export function PrecinctDrawer({
             Won here
           </div>
           <div className="text-sm text-slate-700">
-            {y?.winner ?? "—"}{" "}
+            {y?.tied ? (
+              <>
+                <span className="font-medium">Tied</span> —{" "}
+                {y.winners.join(" and ")}
+              </>
+            ) : (
+              y?.winner ?? "—"
+            )}{" "}
             <span className="text-slate-400">
-              ({fmtInt(y?.winnerVotes ?? 0)} votes)
+              ({fmtInt(y?.winnerVotes ?? 0)} votes{y?.tied ? " each" : ""})
             </span>
           </div>
         </div>

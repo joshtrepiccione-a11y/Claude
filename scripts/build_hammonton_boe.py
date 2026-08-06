@@ -103,6 +103,8 @@ def main():
     years = sorted(votes)
 
     # ---- Town-wide totals, ranks, elected ---------------------------------
+    warnings_townwide = []
+
     def is_cand(n):
         return not NON_CANDIDATE.search(n)
 
@@ -118,11 +120,30 @@ def main():
                 for k in list(MODES) + ["total"]:
                     agg[c][k] += rec[k]
         contest_votes = sum(v["total"] for v in agg.values())
-        ranked = sorted(((v["total"], c) for c, v in agg.items() if is_cand(c)),
-                        reverse=True)
-        rank = {c: n for n, (_, c) in enumerate(ranked, start=1)}
+        totals_only = {c: v["total"] for c, v in agg.items() if is_cand(c)}
+        # Standard competition ranking: equal totals share a rank, so no
+        # candidate is ordered ahead of another by name.
+        rank = {}
+        for c, v in totals_only.items():
+            rank[c] = 1 + sum(
+                1 for other in totals_only.values() if other > v)
         n_seats = seats.get(y, 0)
         elected = [c for c, rk in rank.items() if n_seats and rk <= n_seats]
+        # If more candidates tie into the seat range than there are seats, the
+        # contest is not resolvable from vote counts alone (NJ breaks such ties
+        # by lot). Say so rather than picking one.
+        seat_tie = n_seats and len(elected) > n_seats
+        if seat_tie:
+            cutoff = [c for c in elected
+                      if sum(1 for o in totals_only.values()
+                             if o > totals_only[c]) + 1 == max(
+                                 rank[e] for e in elected)]
+            warnings_townwide.append(
+                f"{y}: {len(elected)} candidates tie into {n_seats} seat(s) "
+                f"({', '.join(sorted(cutoff))}) — the certified totals do not "
+                f"resolve who is seated.")
+        # Present the seated candidates strongest first, ballot order within a tie.
+        elected.sort(key=lambda c: (rank[c], candidates[y].index(c)))
 
         # Does any unit report a mode split this year?
         mode_reported = any(
@@ -152,6 +173,7 @@ def main():
                 for c in candidates[y]
             ],
             "elected": elected,
+            "seatTie": bool(seat_tie),
             "modeCoverage": coverage,
             "fieldModes": {m: sum(agg[c][m] for c in agg) for m in MODES},
             "townLevelUnits": {
@@ -211,14 +233,20 @@ def main():
         for y in years:
             cmap = votes[y].get(d, {})
             contest = sum(rec["total"] for rec in cmap.values())
-            ranked = sorted(((rec["total"], c) for c, rec in cmap.items() if is_cand(c)),
-                            reverse=True)
+            real = {c: rec["total"] for c, rec in cmap.items() if is_cand(c)}
+            top = max(real.values()) if real else None
+            # A tie for first is a real outcome, not something to break by
+            # name. Report every candidate on the top count and let the UI
+            # say "tied" rather than inventing a single winner.
+            leaders = [c for c in candidates[y] if real.get(c) == top] if real else []
             bc = ballots[y].get(label)
             per_year[str(y)] = {
                 "contestVotes": contest,
                 "ballotsCast": bc,
-                "winner": ranked[0][1] if ranked else None,
-                "winnerVotes": ranked[0][0] if ranked else None,
+                "winner": leaders[0] if len(leaders) == 1 else None,
+                "winners": leaders,
+                "tied": len(leaders) > 1,
+                "winnerVotes": top,
                 "candidates": {
                     c: {
                         "votes": rec["total"],
@@ -245,7 +273,7 @@ def main():
 
     # Coverage check: every district in the CSV has geometry and vice versa.
     csv_districts = {d for y in years for d in votes[y]}
-    warnings = []
+    warnings = list(warnings_townwide)
     if csv_districts - geo_districts:
         warnings.append(f"districts in CSV without geometry: "
                         f"{sorted(csv_districts - geo_districts)}")

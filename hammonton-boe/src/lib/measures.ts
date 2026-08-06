@@ -253,7 +253,8 @@ export function precinctMeasures(
       toRank,
       fromWinner: ya?.winner ?? null,
       toWinner: yb?.winner ?? null,
-      flipped: ya?.winner !== focus && yb?.winner === focus,
+      // Outright lead in the later year only — a tie is not "coming to lead".
+      flipped: ya?.winner !== focus && yb?.winner === focus && !yb?.tied,
       fromModes: ca?.modes ?? zeroModes(),
       toModes: cb?.modes ?? zeroModes(),
       fromContest: ya?.contestVotes ?? 0,
@@ -313,8 +314,7 @@ export function hasPrecinctModes(data: BoeData, year: string): boolean {
 export function precinctWinners(data: BoeData, year: string): string[] {
   const seen = new Set<string>();
   for (const f of data.features) {
-    const w = f.properties.years[year]?.winner;
-    if (w) seen.add(w);
+    for (const w of f.properties.years[year]?.winners ?? []) seen.add(w);
   }
   return Array.from(seen);
 }

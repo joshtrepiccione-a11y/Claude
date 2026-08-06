@@ -33,6 +33,9 @@ export const FOCUS_SOFT = "#ece9f8";
 /** Neutral used for WRITE-IN / Personal Choice — never a candidate hue. */
 export const NON_CANDIDATE_COLOR = "#a3aacb";
 
+/** A tied precinct has no winner to colour. Distinct from "no data". */
+export const TIED_COLOR = "#c3c2b7";
+
 /**
  * Candidate identity hues, in fixed order, never cycled. The focus candidate is
  * pinned to violet; everyone else takes the next slot.

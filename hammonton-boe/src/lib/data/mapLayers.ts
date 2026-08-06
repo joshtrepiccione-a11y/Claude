@@ -10,6 +10,7 @@ import {
   DIV_LEGEND,
   INK,
   SEQ_LEGEND,
+  TIED_COLOR,
   diverging,
   sequential,
 } from "./palette";
@@ -187,23 +188,34 @@ export const METRICS: MetricConfig[] = [
     shortLabel: "Winner",
     description: "Who placed first in each precinct that year.",
     colorFn: (f, ctx) => {
-      const w = f.properties.years[ctx.year]?.winner;
-      if (!w) return INK.noData;
-      return winnerColorsFor(ctx)[w] ?? INK.noData;
+      const y = f.properties.years[ctx.year];
+      if (!y) return INK.noData;
+      // A tie is a real result with no single winner — it gets its own fill
+      // rather than being resolved to one of the tied names.
+      if (y.tied) return TIED_COLOR;
+      return y.winner ? winnerColorsFor(ctx)[y.winner] ?? INK.noData : INK.noData;
     },
     legend: (ctx) => {
       const colors = winnerColorsFor(ctx);
       const winners = new Set(
-        ctx.data.features
-          .map((f) => f.properties.years[ctx.year]?.winner)
-          .filter((w): w is string => !!w),
+        ctx.data.features.flatMap(
+          (f) => f.properties.years[ctx.year]?.winners ?? [],
+        ),
       );
-      return (ctx.data.meta.candidatesByYear[ctx.year] ?? [])
+      const items = (ctx.data.meta.candidatesByYear[ctx.year] ?? [])
         .filter((n) => winners.has(n))
         .map((l) => ({ c: colors[l] ?? INK.noData, l }));
+      if (ctx.data.features.some((f) => f.properties.years[ctx.year]?.tied)) {
+        items.push({ c: TIED_COLOR, l: "Tied — no single winner" });
+      }
+      return items;
     },
     availableFor: () => null,
-    valueLabel: (f, ctx) => f.properties.years[ctx.year]?.winner ?? "—",
+    valueLabel: (f, ctx) => {
+      const y = f.properties.years[ctx.year];
+      if (!y) return "—";
+      return y.tied ? `Tied: ${y.winners.join(" / ")}` : y.winner ?? "—";
+    },
   },
   {
     id: "turnout",

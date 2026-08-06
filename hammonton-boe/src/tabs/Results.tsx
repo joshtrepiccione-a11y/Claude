@@ -166,7 +166,11 @@ export function Results({
                           </td>
                         );
                       })}
-                      <td className="py-2 text-slate-600">{y?.winner ?? "—"}</td>
+                      <td className="py-2 text-slate-600">
+                        {y?.tied
+                          ? `Tied — ${y.winners.join(" / ")}`
+                          : y?.winner ?? "—"}
+                      </td>
                     </tr>
                   );
                 })}

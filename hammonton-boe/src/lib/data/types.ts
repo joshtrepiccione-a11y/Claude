@@ -55,6 +55,8 @@ export interface YearTownwide {
   ballotsCast: number | null;
   candidates: CandidateTownwide[];
   elected: string[];
+  /** True when more candidates tie into the seat range than there are seats. */
+  seatTie: boolean;
   modeCoverage: ModeCoverage;
   fieldModes: ModeCounts;
   townLevelUnits: Record<string, TownLevelUnit>;
@@ -72,7 +74,11 @@ export interface PrecinctCandidate {
 export interface PrecinctYear {
   contestVotes: number;
   ballotsCast: number | null;
+  /** Null when the precinct is TIED for first — see `winners` / `tied`. */
   winner: string | null;
+  /** Everyone on the top vote count. One name normally, more when tied. */
+  winners: string[];
+  tied: boolean;
   winnerVotes: number | null;
   candidates: Record<string, PrecinctCandidate>;
 }
