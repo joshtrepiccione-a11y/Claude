@@ -9,7 +9,7 @@ import {
   fmtPctSigned,
   fmtSigned,
   ordinal,
-  precinctMeasures,
+  precinctMeasure,
   colorsForYear,
 } from "../lib/measures";
 import { RankedBars, StackedModeBar, type RankedRow } from "./Charts";
@@ -48,9 +48,7 @@ export function PrecinctDrawer({
   // Always compare earliest → latest so the change reads forward in time,
   // whichever year the map is currently showing.
   const [fromYear, toYear] = [compareYear, year].sort();
-  const m = precinctMeasures(data, focus, fromYear, toYear).find(
-    (x) => x.precinct === p.precinct,
-  );
+  const m = precinctMeasure(data, focus, fromYear, toYear, p.precinct);
 
   const rows: RankedRow[] = Object.entries(y?.candidates ?? {})
     .map(([name, c]) => ({
@@ -110,7 +108,10 @@ export function PrecinctDrawer({
           <div className="text-xs uppercase tracking-wide text-slate-500 mb-2">
             All candidates, {year}
           </div>
-          <RankedBars rows={rows} seatsUp={tw?.seatsUp} />
+          {/* No seat line here: seats are won on the town-wide total, so a
+              cutoff drawn over one district's ranking would imply the top
+              three here were the ones elected. */}
+          <RankedBars rows={rows} />
         </div>
 
         {hasModes && mine && (

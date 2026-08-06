@@ -71,6 +71,15 @@ export function MapTab({
                 dispatch({ type: "setYear", year: y });
                 const other = years.find((o) => o !== y);
                 if (other) dispatch({ type: "setCompareYear", year: other });
+                // The new year may not report the mode that is currently
+                // selected. Leaving it set would strand the user on a mode
+                // whose button is disabled — including its own.
+                if (
+                  state.mode !== "all" &&
+                  !availableModes(data, y).includes(state.mode)
+                ) {
+                  dispatch({ type: "setMode", mode: "all" });
+                }
               }}
             />
           </Control>
@@ -105,6 +114,13 @@ export function MapTab({
           </Control>
         </div>
         <p className="text-xs text-slate-600 mt-3">{metric.description}</p>
+        {metric.id === "change" &&
+          !data.meta.precinctComparability.directlyComparable && (
+            <p className="mt-2 text-xs text-slate-600 bg-amber-50 border border-amber-100 rounded-md px-3 py-2 leading-snug">
+              <strong>Read this map with care.</strong>{" "}
+              {data.meta.precinctComparability.note}
+            </p>
+          )}
       </Card>
 
       <div className="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-4">

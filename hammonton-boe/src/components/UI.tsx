@@ -149,10 +149,12 @@ export function Segmented<T extends string>({
             disabled={disabled}
             title={o.disabledReason ?? undefined}
             className={`px-3 py-1.5 rounded-md text-sm font-medium border transition min-h-[44px] sm:min-h-0 ${
-              active
-                ? "bg-focus text-white border-focus"
-                : disabled
+              // Disabled wins: an option that is both selected and unusable
+              // must not keep the selected styling, or it reads as active.
+              disabled
                 ? "bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed"
+                : active
+                ? "bg-focus text-white border-focus"
                 : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
             }`}
           >

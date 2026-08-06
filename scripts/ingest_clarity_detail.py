@@ -39,9 +39,14 @@ import re
 import sys
 import xml.etree.ElementTree as ET
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from hammonton_common import district_of, to_int  # noqa: E402
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 DEFAULT_CSV = os.path.join(ROOT, "data", "hammonton_boe_real.csv")
+DEFAULT_DECLARED = os.path.join(ROOT, "data",
+                                "hammonton_boe_declared_totals.csv")
 
 HEADER = ["year", "precinct", "candidate", "votes_total", "votes_election_day",
           "votes_early", "votes_vbm", "votes_provisional", "ballots_cast",
@@ -61,17 +66,6 @@ VOTETYPE_MODES = {
     "early voting": "early", "early": "early", "advance in person": "early",
     "provisional": "provisional",
 }
-
-
-def district_of(name: str):
-    """District number if the label is a geographic district, else None."""
-    m = re.search(r"\bdist(?:rict)?\.?\s*(\d+)", name, re.I)
-    if m:
-        return int(m.group(1))
-    if re.search(r"mail|prov|early|\bev\b|absentee", name, re.I):
-        return None
-    nums = re.findall(r"\d+", name)
-    return int(nums[-1]) if nums else None
 
 
 def mode_of(name: str):
@@ -105,6 +99,8 @@ def main():
     ap.add_argument("--merge", action="store_true",
                     help="Merge into data/hammonton_boe_real.csv.")
     ap.add_argument("--csv", default=DEFAULT_CSV)
+    ap.add_argument("--declared", default=DEFAULT_DECLARED,
+                    help="Where to record the county's own town-wide totals.")
     args = ap.parse_args()
 
     root = ET.parse(args.xml).getroot()
@@ -207,6 +203,32 @@ def main():
             "Election Day only and mail/early/provisional are town-level.\n")
 
     if args.merge:
+        # The county publishes each candidate's town-wide total as its own
+        # figure, separate from the district lines. Recording it lets the
+        # validator reconcile the two -- which is what catches a dropped or
+        # duplicated precinct row. Summing the districts here instead would
+        # make the check circular and worthless.
+        declared = []
+        if os.path.exists(args.declared):
+            with open(args.declared, newline="") as f:
+                declared = [r for r in csv.DictReader(f)
+                            if (r.get("year") or "").strip() != str(year)]
+        for ch in contest.findall("Choice"):
+            declared.append({
+                "year": year,
+                "candidate": clean(ch.get("text")),
+                "declared_votes": int(ch.get("totalVotes") or 0),
+                "source": "Clarity detail.xml Choice/@totalVotes",
+            })
+        with open(args.declared, "w", newline="") as f:
+            w = csv.DictWriter(
+                f, fieldnames=["year", "candidate", "declared_votes", "source"])
+            w.writeheader()
+            for r in sorted(declared, key=lambda r: (int(r["year"]),
+                                                     str(r["candidate"]))):
+                w.writerow(r)
+        sys.stderr.write(f"  declared totals -> {args.declared}\n")
+
         existing = []
         if os.path.exists(args.csv):
             with open(args.csv, newline="") as f:

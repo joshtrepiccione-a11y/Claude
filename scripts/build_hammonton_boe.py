@@ -37,6 +37,9 @@ import re
 import sys
 from collections import defaultdict
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from hammonton_common import district_of, is_candidate, to_int as i  # noqa: E402
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 CSV_IN = os.path.join(ROOT, "data", "hammonton_boe_real.csv")
@@ -46,23 +49,7 @@ OUT = os.path.join(ROOT, "hammonton-boe", "public", "data",
 
 MUNICIPALITY = "Hammonton Town"
 MODES = ["election_day", "early", "vbm", "provisional"]
-NON_CANDIDATE = re.compile(r"write[\s-]*in|personal\s+choice", re.I)
 FOCUS_MATCH = "pullia"   # case-insensitive substring; the default focus
-
-
-def district_of(name: str):
-    m = re.search(r"\bdist(?:rict)?\.?\s*(\d+)", name or "", re.I)
-    if m:
-        return int(m.group(1))
-    if re.search(r"mail|prov|early|\bev\b|absentee", name or "", re.I):
-        return None
-    nums = re.findall(r"\d+", name or "")
-    return int(nums[-1]) if nums else None
-
-
-def i(v):
-    v = (str(v) if v is not None else "").strip().replace(",", "")
-    return int(float(v)) if v else 0
 
 
 def main():
@@ -79,6 +66,7 @@ def main():
     # town_level[year][bucket][candidate] = {...}  (non-geographic units)
     town_level = defaultdict(lambda: defaultdict(dict))
     ballots = defaultdict(dict)          # year -> unit -> ballots_cast
+    dup_rows = []                        # year/unit/candidate seen more than once
     seats = {}                           # year -> seats_up
     candidates = defaultdict(list)       # year -> ordered candidate names
 
@@ -93,10 +81,16 @@ def main():
         if r.get("seats_up", "").strip():
             seats[year] = i(r["seats_up"])
         d = district_of(unit)
-        if d is None:
-            town_level[year][unit][cand] = rec
-        else:
-            votes[year][d][cand] = rec
+        bucket = town_level[year][unit] if d is None else votes[year][d]
+        if cand in bucket:
+            # Two CSV rows landed on the same year/unit/candidate. Assigning
+            # here would silently drop the first row's votes from the district,
+            # the town-wide total and every share. Sum instead, and surface it
+            # -- the validator treats this as a hard error, so the two agree.
+            dup_rows.append(f"{year} / {unit} / {cand}")
+            for k in list(MODES) + ["total"]:
+                rec[k] += bucket[cand][k]
+        bucket[cand] = rec
         if r.get("ballots_cast", "").strip():
             ballots[year][unit] = i(r["ballots_cast"])
 
@@ -104,9 +98,7 @@ def main():
 
     # ---- Town-wide totals, ranks, elected ---------------------------------
     warnings_townwide = []
-
-    def is_cand(n):
-        return not NON_CANDIDATE.search(n)
+    is_cand = is_candidate
 
     townwide = {}
     for y in years:
@@ -274,6 +266,11 @@ def main():
     # Coverage check: every district in the CSV has geometry and vice versa.
     csv_districts = {d for y in years for d in votes[y]}
     warnings = list(warnings_townwide)
+    if dup_rows:
+        warnings.append(
+            "duplicate rows summed rather than dropped (run "
+            "validate_hammonton_csv.py, which rejects these): "
+            + ", ".join(sorted(set(dup_rows))))
     if csv_districts - geo_districts:
         warnings.append(f"districts in CSV without geometry: "
                         f"{sorted(csv_districts - geo_districts)}")

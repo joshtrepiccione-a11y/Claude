@@ -1,5 +1,6 @@
 import { useApp, type TabId } from "../state/store";
 import type { BoeData } from "../lib/data/types";
+import { isNonCandidate } from "../lib/data/palette";
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: "turnaround", label: "Turnaround", icon: "◔" },
@@ -29,9 +30,7 @@ function Mark() {
 
 export function Nav({ data }: { data: BoeData }) {
   const { state, dispatch } = useApp();
-  const candidates = data.meta.allCandidates.filter(
-    (c) => !/write[\s-]*in|personal\s+choice/i.test(c),
-  );
+  const candidates = data.meta.allCandidates.filter((c) => !isNonCandidate(c));
 
   return (
     <>

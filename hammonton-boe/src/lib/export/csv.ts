@@ -22,19 +22,19 @@ export function turnaroundToCSV(
   const headers = [
     "District",
     "Precinct",
-    `${fromYear} ${focus} votes`,
+    csv(`${fromYear} ${focus} votes`),
     `${fromYear} share %`,
     `${fromYear} support rate %`,
     `${fromYear} placing`,
-    `${toYear} ${focus} votes`,
+    csv(`${toYear} ${focus} votes`),
     `${toYear} share %`,
     `${toYear} support rate %`,
     `${toYear} placing`,
     "Change in votes",
     "Change in share (pts)",
     "Flipped to focus",
-    ...MODES.map((m) => `${fromYear} ${MODE_SHORT[m]}`),
-    ...MODES.map((m) => `${toYear} ${MODE_SHORT[m]}`),
+    ...MODES.map((m) => csv(`${fromYear} ${MODE_SHORT[m]}`)),
+    ...MODES.map((m) => csv(`${toYear} ${MODE_SHORT[m]}`)),
   ];
   const lines = [headers.join(",")];
   for (const r of rows) {
@@ -70,7 +70,10 @@ export function resultsToCSV(data: BoeData, year: string): string {
     "Precinct",
     "Ballots cast",
     "Votes cast in contest",
-    ...ballot,
+    // Candidate names are county-supplied text and can contain a comma
+    // ("Pullia, Mickey" is normal Clarity choice-text) -- unescaped they would
+    // shift every header cell right of that name.
+    ...ballot.map(csv),
     "Winner",
   ];
   const lines = [headers.join(",")];
@@ -84,7 +87,7 @@ export function resultsToCSV(data: BoeData, year: string): string {
         y?.ballotsCast ?? "",
         y?.contestVotes ?? 0,
         ...ballot.map((c) => y?.candidates[c]?.votes ?? 0),
-        csv(y?.winner ?? ""),
+        csv(y?.tied ? `Tied: ${y.winners.join(" / ")}` : y?.winner ?? ""),
       ].join(","),
     );
   }

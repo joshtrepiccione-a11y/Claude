@@ -6,6 +6,7 @@
 // unavailable through `availableFor` rather than rendering an empty map.
 
 import type { BoeData, Mode, PrecinctFeature } from "./types";
+import { MODE_LABEL } from "./types";
 import {
   DIV_LEGEND,
   INK,
@@ -14,7 +15,13 @@ import {
   diverging,
   sequential,
 } from "./palette";
-import { colorsForYear, hasPrecinctModes, precinctValue } from "../measures";
+import {
+  colorsForYear,
+  fmtPct,
+  fmtPctSigned,
+  hasPrecinctMode,
+  precinctValue,
+} from "../measures";
 
 export type MetricId =
   | "change"
@@ -49,13 +56,6 @@ export interface MetricConfig {
   /** Value shown in the map tooltip. */
   valueLabel: (f: PrecinctFeature, ctx: MetricContext) => string;
 }
-
-const pct = (v: number | null, d = 1) =>
-  v === null || !isFinite(v) ? "—" : `${(v * 100).toFixed(d)}%`;
-const pctSigned = (v: number | null, d = 1) =>
-  v === null || !isFinite(v)
-    ? "—"
-    : `${v >= 0 ? "+" : "−"}${(Math.abs(v) * 100).toFixed(d)} pts`;
 
 /**
  * The two compared years, always earliest → latest, so "change" reads forward
@@ -95,15 +95,16 @@ export const METRICS: MetricConfig[] = [
       return diverging(b - a, 0.08);
     },
     legend: () => DIV_LEGEND,
-    availableFor: (ctx) =>
-      ctx.year === ctx.compareYear
-        ? "Pick two different years to see the change between them."
-        : null,
+    availableFor: (ctx) => {
+      if (ctx.year === ctx.compareYear)
+        return "Pick two different years to see the change between them.";
+      return modeBlocked(ctx, chronological(ctx));
+    },
     valueLabel: (f, ctx) => {
       const [from, to] = chronological(ctx);
       const a = shareOf(f, ctx, from);
       const b = shareOf(f, ctx, to);
-      return a === null || b === null ? "—" : pctSigned(b - a);
+      return a === null || b === null ? "—" : fmtPctSigned(b - a);
     },
   },
   {
@@ -132,7 +133,7 @@ export const METRICS: MetricConfig[] = [
         return `The county published no ballot counts for ${ctx.year}, so votes cannot be compared to the number of voters. The Results tab shows share of votes cast instead.`;
       return null;
     },
-    valueLabel: (f, ctx) => pct(supportOf(f, ctx, ctx.year)),
+    valueLabel: (f, ctx) => fmtPct(supportOf(f, ctx, ctx.year)),
   },
   {
     id: "lean",
@@ -164,9 +165,9 @@ export const METRICS: MetricConfig[] = [
     availableFor: (ctx) => {
       if (ctx.mode === "all")
         return "Pick a single vote mode to see where the candidate over- or under-indexes on it.";
-      if (!hasPrecinctModes(ctx.data, ctx.year))
-        return `${ctx.year} vote modes are not reported per precinct, so mode lean cannot be mapped. The Turnaround tab shows the town-wide mode mix instead.`;
-      return null;
+      // Must test the SELECTED mode: 2021 has per-precinct Election Day data,
+      // which would wrongly clear the check for mail or early.
+      return modeBlocked(ctx, [ctx.year]);
     },
     valueLabel: (f, ctx) => {
       const mode = ctx.mode;
@@ -179,7 +180,7 @@ export const METRICS: MetricConfig[] = [
         (s, cc) => s + (cc.modes[mode] || 0),
         0,
       );
-      return pctSigned(mine - (fieldTotal > 0 ? fieldMode / fieldTotal : 0));
+      return fmtPctSigned(mine - (fieldTotal > 0 ? fieldMode / fieldTotal : 0));
     },
   },
   {
@@ -249,6 +250,27 @@ export const METRICS: MetricConfig[] = [
     },
   },
 ];
+
+/**
+ * Null when the selected mode is usable for every year given, otherwise the
+ * reason it is not. A mode the county only ever reported as a town-wide bucket
+ * has no per-precinct figures, so mapping it would show zeros that look
+ * measured.
+ */
+function modeBlocked(ctx: MetricContext, years: string[]): string | null {
+  if (ctx.mode === "all") return null;
+  const missing = years.filter((y) => !hasPrecinctMode(ctx.data, y, ctx.mode as Mode));
+  if (missing.length === 0) return null;
+  const label = MODE_LABEL[ctx.mode as Mode];
+  return (
+    `${missing.join(" and ")} ${label} votes are not reported per precinct` +
+    `${missing.some((y) => ctx.data.meta.townwide[y]?.modeCoverage === "town-level")
+      ? " — the county published them only as a town-wide bucket"
+      : ""}` +
+    `, so this cannot be mapped by district. Switch to All, or see the ` +
+    `Turnaround and Results tabs for the town-wide figures.`
+  );
+}
 
 function winnerColorsFor(ctx: MetricContext): Record<string, string> {
   return colorsForYear(ctx.data, ctx.year, ctx.focus);

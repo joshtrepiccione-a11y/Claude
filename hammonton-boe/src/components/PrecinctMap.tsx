@@ -53,7 +53,10 @@ export function PrecinctMap({
   colorOfRef.current = colorOf;
   tooltipOfRef.current = tooltipOf;
 
-  // Initialise the map once.
+  // Initialise the map once, and tear it down on unmount -- this component is
+  // destroyed whenever the user leaves the Map tab or the metric becomes
+  // unavailable, and a Leaflet map left alive keeps its resize/zoom listeners
+  // and tile requests running.
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
     const map = L.map(containerRef.current, {
@@ -70,7 +73,13 @@ export function PrecinctMap({
       { maxZoom: 18, subdomains: "abcd", pane: "shadowPane" },
     ).addTo(map);
     mapRef.current = map;
-    setTimeout(() => map.invalidateSize(), 100);
+    const t = window.setTimeout(() => map.invalidateSize(), 100);
+    return () => {
+      window.clearTimeout(t);
+      map.remove();
+      mapRef.current = null;
+      layerRef.current = null;
+    };
   }, []);
 
   // Build / replace the GeoJSON layer only when geometry or coloring changes.
@@ -119,16 +128,21 @@ export function PrecinctMap({
           className: "precinct-label",
           opacity: 0.9,
         });
-        const el = (lyr as L.Path).getElement?.();
-        if (el) {
-          el.setAttribute("tabindex", "0");
-          el.setAttribute("role", "button");
-          el.setAttribute("aria-label", tooltipOfRef.current(feature));
-        }
       },
     });
     gj.addTo(map);
     layerRef.current = gj;
+    // Only now do the SVG paths exist, so this must run after addTo() --
+    // inside onEachFeature getElement() is always undefined and the keyboard
+    // handler below would be unreachable.
+    gj.eachLayer((lyr) => {
+      const feature = (lyr as L.GeoJSON).feature as PrecinctFeature | undefined;
+      const el = (lyr as L.Path).getElement?.();
+      if (!el || !feature) return;
+      el.setAttribute("tabindex", "0");
+      el.setAttribute("role", "button");
+      el.setAttribute("aria-label", tooltipOfRef.current(feature));
+    });
     try {
       const b = gj.getBounds();
       if (b.isValid()) map.fitBounds(b, { padding: [16, 16] });
@@ -137,6 +151,21 @@ export function PrecinctMap({
     }
     // Depends only on geometry + coloring — NOT on selection.
   }, [geojson, colorKey]);
+
+  // Keep each shape's accessible name in step with the metric on show.
+  useEffect(() => {
+    const gj = layerRef.current;
+    if (!gj) return;
+    gj.eachLayer((lyr) => {
+      const feature = (lyr as L.GeoJSON).feature as PrecinctFeature | undefined;
+      const el = (lyr as L.Path).getElement?.();
+      if (el && feature) {
+        el.setAttribute("aria-label", tooltipOf(feature));
+        el.setAttribute("aria-pressed", String(
+          selectedPrecinct === feature.properties.precinct));
+      }
+    });
+  }, [tooltipOf, selectedPrecinct]);
 
   // Restyle on selection in a separate effect; no layer rebuild.
   useEffect(() => {

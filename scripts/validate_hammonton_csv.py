@@ -12,8 +12,11 @@ Checks:
      every (year, candidate); no candidate is missing a district.
   3. Mode consistency: election_day + early + vbm + provisional == votes_total
      per row, for any row that reports modes at all.
-  4. Internal consistency: each candidate's town-wide total equals the sum of
-     that candidate's geographic precinct rows.
+  4. Town-wide reconcile: each candidate's summed rows equal the town-wide
+     total the COUNTY declared, read from data/hammonton_boe_declared_totals.csv.
+     This is the check that catches a dropped or duplicated precinct row --
+     summing the rows and comparing to themselves would be circular. Skipped
+     with a warning if the declared-totals file is absent.
   5. seats_up and ballots_cast are consistent within each (year[, precinct]).
 
 Tolerated (reported as warnings, not failures):
@@ -35,9 +38,13 @@ import os
 import re
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from hammonton_common import NON_CANDIDATE, district_of, to_int as _to_int  # noqa: E402
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 DEFAULT_CSV = os.path.join(ROOT, "data", "hammonton_boe_real.csv")
+DECLARED = os.path.join(ROOT, "data", "hammonton_boe_declared_totals.csv")
 GEOJSON = os.path.join(ROOT, "data", "atlantic_precincts.geojson")
 
 MUNICIPALITY = "Hammonton Town"
@@ -51,28 +58,11 @@ MODE_COLS = [
 ]
 OPTIONAL = MODE_COLS + ["ballots_cast", "seats_up"]
 
-# Names that are not real candidates and must never occupy an elected seat.
-NON_CANDIDATE = re.compile(r"write[\s-]*in|personal\s+choice", re.I)
-
-
-def district_of(precinct: str):
-    """Extract a district number from a precinct label, or None if the label is
-    not a geographic district (e.g. a town-level 'Mail-In' bucket)."""
-    nums = re.findall(r"\d+", precinct or "")
-    if not nums:
-        return None
-    n = int(nums[-1])
-    return n if n > 0 else None
-
-
 def to_int(v, where, errors):
-    v = (v or "").strip().replace(",", "")
-    if v == "":
-        return 0
     try:
-        n = int(float(v))
+        n = _to_int(v)
     except ValueError:
-        errors.append(f"{where}: non-integer value {v!r}")
+        errors.append(f"{where}: non-integer value {(v or '').strip()!r}")
         return 0
     if n < 0:
         errors.append(f"{where}: negative value {n}")
@@ -213,7 +203,27 @@ def main():
             "cannot be computed; the app falls back to contest vote share and "
             "labels it as such.")
 
-    # ---- Check 4 + reporting ----------------------------------------------
+    # ---- Check 4: reconcile against the county's OWN town-wide totals ------
+    # Summing the precinct rows and comparing that to itself would prove
+    # nothing. The county publishes each candidate's town-wide total as a
+    # separate figure; comparing the two is what actually catches a dropped,
+    # duplicated or mistyped precinct row.
+    declared = {}
+    if os.path.exists(DECLARED):
+        with open(DECLARED, newline="") as f:
+            for r in csv.DictReader(f):
+                try:
+                    y = int((r.get("year") or "").strip())
+                except ValueError:
+                    continue
+                declared[(y, (r.get("candidate") or "").strip())] = to_int(
+                    r.get("declared_votes"), f"{DECLARED}", errors)
+    else:
+        warnings.append(
+            f"{os.path.basename(DECLARED)} not found -- the town-wide "
+            "reconcile is SKIPPED, so a dropped precinct row would not be "
+            "caught. Generate it with ingest_clarity_detail.py.")
+
     print(f"Geometry: {len(geo_districts)} {MUNICIPALITY} districts "
           f"({', '.join(f'{d:02d}' for d in sorted(geo_districts))}).\n")
 
@@ -223,6 +233,36 @@ def main():
         for c, v in town_rows.get(year, {}).items():
             totals[c] = totals.get(c, 0) + v
         contest = sum(totals.values())
+
+        # Check 4 proper: every candidate's summed rows vs the declared total.
+        years_declared = {y for (y, _) in declared}
+        if year in years_declared:
+            checked = 0
+            for cand, summed in sorted(totals.items()):
+                exp = declared.get((year, cand))
+                if exp is None:
+                    errors.append(
+                        f"{year} / {cand}: appears in the results but has no "
+                        f"declared town-wide total to reconcile against.")
+                    continue
+                checked += 1
+                if summed != exp:
+                    errors.append(
+                        f"{year} / {cand}: precinct rows sum to {summed:,} but "
+                        f"the county's declared town-wide total is {exp:,} "
+                        f"(off by {summed - exp:+,}).")
+            for (y, cand) in sorted(declared):
+                if y == year and cand not in totals:
+                    errors.append(
+                        f"{year} / {cand}: has a declared town-wide total but "
+                        f"no rows in the results file.")
+            print(f"{year} -- reconciled {checked} candidate total(s) against "
+                  f"the county's declared figures.")
+        elif declared:
+            warnings.append(
+                f"{year}: no declared town-wide totals on file, so the "
+                "reconcile is skipped for this year.")
+
         print(f"{year} -- seats up: {seat_n or '?'}   contest votes cast: {contest:,}"
               + ("   [TOTALS-ONLY: no mode split reported]"
                  if not mode_reported.get(year) else ""))

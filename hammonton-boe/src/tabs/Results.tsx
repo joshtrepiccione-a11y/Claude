@@ -26,16 +26,26 @@ export function Results({
   const colors = colorsForYear(data, year, focus);
   const modesHere = availableModes(data, year);
 
+  // Under a mode filter the denominator has to be that mode's votes too --
+  // pairing a mode-filtered count with the all-modes share puts two different
+  // numerators in the same row.
+  const modeTotal =
+    mode === "all"
+      ? tw.contestVotes
+      : tw.candidates.reduce((a, c) => a + (c.modes[mode] || 0), 0);
   const rows: RankedRow[] = tw.candidates
-    .map((c) => ({
+    .map((c) => {
+      const votes = mode === "all" ? c.votes : c.modes[mode] || 0;
+      return {
       name: c.name,
-      votes: mode === "all" ? c.votes : c.modes[mode] || 0,
-      share: c.share,
+      votes,
+      share: modeTotal > 0 ? votes / modeTotal : 0,
       color: colors[c.name] ?? "#a3aacb",
       isFocus: c.name === focus,
       elected: c.elected,
       rank: c.rank,
-    }))
+      };
+    })
     .sort((a, b) => {
       if (isNonCandidate(a.name) !== isNonCandidate(b.name)) {
         return isNonCandidate(a.name) ? 1 : -1;
@@ -102,14 +112,21 @@ export function Results({
       <div className="grid lg:grid-cols-[380px_minmax(0,1fr)] gap-4">
         <Card
           title={`Town-wide, ${year}`}
-          subtitle={mode === "all" ? "All vote modes" : MODE_LABEL[mode]}
+          subtitle={
+            mode === "all"
+              ? "All vote modes"
+              : `${MODE_LABEL[mode]} only — elected is still the all-modes result`
+          }
         >
           {mode !== "all" && !modesHere.includes(mode) ? (
             <Unavailable
               reason={`The county published no ${MODE_LABEL[mode]} figures for ${year}.`}
             />
           ) : (
-            <RankedBars rows={rows} seatsUp={tw.seatsUp} />
+            // The seat cutoff belongs to the town-wide, all-modes ranking.
+            // Drawing it over a mode-filtered order would put a candidate who
+            // was never elected above the line.
+            <RankedBars rows={rows} seatsUp={mode === "all" ? tw.seatsUp : undefined} />
           )}
         </Card>
 

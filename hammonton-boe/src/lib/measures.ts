@@ -223,7 +223,16 @@ export function precinctMeasures(
   fromYear: string,
   toYear: string,
 ): PrecinctMeasure[] {
-  return data.features.map((f) => {
+  return data.features.map((f) => measureFor(f, focus, fromYear, toYear));
+}
+
+function measureFor(
+  f: PrecinctFeature,
+  focus: string,
+  fromYear: string,
+  toYear: string,
+): PrecinctMeasure {
+  {
     const p = f.properties;
     const ya = p.years[fromYear];
     const yb = p.years[toYear];
@@ -262,7 +271,19 @@ export function precinctMeasures(
       fromBallots: ya?.ballotsCast ?? null,
       toBallots: yb?.ballotsCast ?? null,
     };
-  });
+  }
+}
+
+/** Measures for a single precinct. */
+export function precinctMeasure(
+  data: BoeData,
+  focus: string,
+  fromYear: string,
+  toYear: string,
+  precinct: string,
+): PrecinctMeasure | undefined {
+  const f = data.features.find((x) => x.properties.precinct === precinct);
+  return f ? measureFor(f, focus, fromYear, toYear) : undefined;
 }
 
 /** One year's per-precinct figures for the focus candidate, in a given mode. */
@@ -280,16 +301,15 @@ export function precinctValue(
   }
   const votes = c.modes[mode] || 0;
   // Denominators must match the numerator's mode, so a share is only
-  // meaningful when the whole field is broken out the same way.
+  // meaningful when the whole field is broken out the same way. When the
+  // county reported nothing in this mode at precinct level the answer is
+  // "not reported" -- returning a share of 0 would render as a measured zero.
   const fieldInMode = Object.values(y.candidates).reduce(
     (s, cc) => s + (cc.modes[mode] || 0),
     0,
   );
-  return {
-    votes,
-    share: fieldInMode > 0 ? votes / fieldInMode : 0,
-    supportRate: null,
-  };
+  if (fieldInMode <= 0) return null;
+  return { votes, share: votes / fieldInMode, supportRate: null };
 }
 
 /** Which modes actually carry data for a year, so controls can disable the rest. */
@@ -297,6 +317,19 @@ export function availableModes(data: BoeData, year: string): Mode[] {
   const tw = data.meta.townwide[year];
   if (!tw) return [];
   return MODES.filter((m) => (tw.fieldModes[m] || 0) > 0);
+}
+
+/** True when THIS mode is broken out per precinct (not just town-wide). */
+export function hasPrecinctMode(
+  data: BoeData,
+  year: string,
+  mode: Mode,
+): boolean {
+  return data.features.some((f) => {
+    const y = f.properties.years[year];
+    if (!y) return false;
+    return Object.values(y.candidates).some((c) => (c.modes[mode] || 0) > 0);
+  });
 }
 
 /** True when a per-precinct mode breakdown exists (not just town-wide buckets). */

@@ -129,10 +129,15 @@ export function diverging(v: number, scale: number): string {
   return v > 0 ? DIV_POS[idx] : DIV_NEG[2 - idx];
 }
 
+// Every fill diverging() can emit needs a swatch, or a reader meets a colour
+// the legend cannot explain -- which is exactly what the "never hue alone"
+// claim depends on. Built from the same arrays so the two cannot drift.
 export const DIV_LEGEND = [
   { c: DIV_NEG[0], l: "Large decline" },
   { c: DIV_NEG[1], l: "Decline" },
+  { c: DIV_NEG[2], l: "Slight decline" },
   { c: DIV_MID, l: "Little change" },
+  { c: DIV_POS[0], l: "Slight gain" },
   { c: DIV_POS[1], l: "Gain" },
   { c: DIV_POS[2], l: "Large gain" },
 ];

@@ -44,18 +44,28 @@ python3 scripts/build_hammonton_boe.py
 | File | Role |
 |---|---|
 | `data/hammonton_boe_real.csv` | the certified results, long format (one row per year × precinct × candidate) |
+| `data/hammonton_boe_declared_totals.csv` | the county's own town-wide total per candidate — an independent figure, not a sum of the rows |
+| `scripts/hammonton_common.py` | the shared reporting-unit classifier all three scripts use |
 | `scripts/ingest_clarity_detail.py` | converts a county `detail.xml` into those rows — the numbers are machine-transcribed, never retyped |
-| `scripts/validate_hammonton_csv.py` | required columns, integer cells, precinct coverage, mode consistency, internal consistency |
+| `scripts/validate_hammonton_csv.py` | required columns, integer cells, precinct coverage, mode consistency, town-wide reconcile |
 | `scripts/build_hammonton_boe.py` | pivots to `public/data/hammonton_boe_precincts.geojson` |
 
 Candidate lists, seat counts (`voteFor`), winners, totals and the elected sets
 are all **read out of the certified data** — none are hardcoded. The focus
 candidate is matched by the case-insensitive substring `pullia`.
 
-The validator is the safety net: it checks that each row's mode split sums to
-its total, that every district is covered for every year and candidate, and
-that each candidate's town-wide total equals the sum of their precinct rows.
-A mistranscribed digit cannot pass all three at once.
+The validator is the safety net. It checks that each row's mode split sums to
+its total, that every district is covered for every year and candidate, and —
+the one that actually catches a bad digit — that each candidate's summed rows
+equal the town-wide total the **county itself declared**, held separately in
+`hammonton_boe_declared_totals.csv`. Summing the rows and comparing them to
+themselves would be circular and would catch nothing; reconciling against an
+independently published figure catches a dropped, duplicated or mistyped row.
+Change any district's votes by 100 and the validator exits non-zero.
+
+Ties are never broken by name. When two candidates share the top count in a
+precinct, the winner is recorded as tied rather than resolved — D03 in 2021 is
+a real 221–221 tie.
 
 ### Sanity check the data reproduces
 
