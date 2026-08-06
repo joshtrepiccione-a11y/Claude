@@ -65,6 +65,7 @@ python3 scripts/build_hammonton_boe.py
 |---|---|
 | `data/hammonton_boe_real.csv` | the certified results, long format (one row per year × precinct × candidate) |
 | `data/hammonton_boe_declared_totals.csv` | the county's own town-wide total per candidate — an independent figure, not a sum of the rows |
+| `data/hammonton_boe_townwide_modes.csv` | the certified town-wide Election Day / Early / Mail / Provisional split per candidate |
 | `scripts/hammonton_common.py` | the shared reporting-unit classifier all three scripts use |
 | `scripts/ingest_clarity_detail.py` | converts a county `detail.xml` into those rows — the numbers are machine-transcribed, never retyped |
 | `scripts/validate_hammonton_csv.py` | required columns, integer cells, precinct coverage, mode consistency, town-wide reconcile |
@@ -94,22 +95,33 @@ The validator derives, from the numbers alone:
 - **2021** — vote for 3, 10,840 votes cast, 5,145 ballots. Pullia **5th of 6, not elected**.
 - **2023** — vote for 3, 8,831 votes cast. Pullia **3rd of 5, elected**.
 
+And the turnaround decomposes exactly: Pullia's net **+152** votes is
+**+180 Election Day, +6 Early Voting, −29 Vote by Mail, −5 Provisional**. He
+gained on Election Day and *lost* ground on mail — the opposite of the usual
+assumption about what drove the win.
+
 ## Two caveats the data forces
 
-**1. Vote modes are reported differently in each year.** Atlantic County
-encodes vote mode in the *precinct name*, not as a separate dimension:
+**1. Vote modes are known town-wide, never by district.** Atlantic County
+published the two years in different shapes:
 
 - **2021** — `Hammonton Dist 01…07` are Election Day returns; `Mail-in`, `EV`,
-  `Provisional` and `EV Prov` are **town-level** buckets (3,397 of 10,840 votes)
-  that cannot be attributed to any district.
-- **2023** — no mode split at all; every mode is folded into the district rows
-  (D01–D07 sum exactly to the town-wide 8,831).
+  `Provisional` and `EV Prov` are **separate town-level reporting units**
+  (3,397 of 10,840 votes) that cannot be attributed to any district.
+- **2023** — district rows **combine every mode** (D01–D07 sum exactly to the
+  town-wide 8,831), and the mode split is published only as a town-wide
+  breakdown.
 
-So per-precinct mode measures do not exist for either year, and the
-"how the win was built" mode decomposition needs both years' splits — it
-reports itself unavailable until a 2023 export with mode detail is added. Drop
-one in via `ingest_clarity_detail.py` and every mode measure lights up with no
-code change.
+So the town-wide mode mix and the contribution breakdown are exact for both
+years, but mode can never be **mapped by district** — the map's mode-dependent
+metrics say so rather than drawing zeros.
+
+One 2023 figure is derived rather than read: Shawn K. McCloud's row is obscured
+in the source, so his Election Day / Early / Mail counts are the published
+field totals minus the other five choices. That is exact arithmetic on certified
+numbers, and it is confirmed twice over — it reproduces both his visible
+provisional count (21) and his certified total (1,592). The derivation is
+recorded in the `source` column.
 
 **2. A district row is not the same electorate in both years** (Election Day
 only in 2021 vs. all modes in 2023). Town-wide totals *are* directly

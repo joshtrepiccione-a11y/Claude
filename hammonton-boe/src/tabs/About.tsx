@@ -88,6 +88,8 @@ export function About({ data, focus }: { data: BoeData; focus: string }) {
         <ul className="space-y-3 text-sm text-slate-700">
           {meta.years.map((y) => {
             const cov = meta.precinctComparability.byYear[y];
+            const basis = meta.precinctComparability.districtBasis?.[y];
+            const units = Object.keys(meta.townwide[y].townLevelUnits);
             return (
               <li key={y} className="flex gap-3">
                 <Pill tone="outline" className="shrink-0 h-fit">
@@ -96,13 +98,20 @@ export function About({ data, focus }: { data: BoeData; focus: string }) {
                 <span>
                   {cov === "district" &&
                     "Vote modes reported per district — every mode measure works at precinct level."}
-                  {cov === "town-level" && (
+                  {cov === "town-level" && basis === "election-day" && (
                     <>
                       District rows are <strong>Election Day only</strong>. Mail,
                       early and provisional votes were reported as separate
-                      town-wide buckets (
-                      {Object.keys(meta.townwide[y].townLevelUnits).join(", ")}),
-                      so they cannot be attributed to any one district.
+                      town-wide units ({units.join(", ")}), so they cannot be
+                      attributed to any one district.
+                    </>
+                  )}
+                  {cov === "town-level" && basis === "all-modes" && (
+                    <>
+                      District rows <strong>combine every mode</strong>, and the
+                      county published the mode split only town-wide. So the
+                      town-wide mode mix and the contribution breakdown are
+                      exact, but mode cannot be mapped by district.
                     </>
                   )}
                   {cov === "none" && (

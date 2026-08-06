@@ -18,6 +18,8 @@ Checks:
      summing the rows and comparing to themselves would be circular. Skipped
      with a warning if the declared-totals file is absent.
   5. seats_up and ballots_cast are consistent within each (year[, precinct]).
+  6. The town-wide vote-mode split, where present, sums to each candidate's
+     declared total and covers every candidate in the year.
 
 Tolerated (reported as warnings, not failures):
   * A missing or all-zero provisional column.
@@ -45,6 +47,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 DEFAULT_CSV = os.path.join(ROOT, "data", "hammonton_boe_real.csv")
 DECLARED = os.path.join(ROOT, "data", "hammonton_boe_declared_totals.csv")
+TOWN_MODES = os.path.join(ROOT, "data", "hammonton_boe_townwide_modes.csv")
 GEOJSON = os.path.join(ROOT, "data", "atlantic_precincts.geojson")
 
 MUNICIPALITY = "Hammonton Town"
@@ -203,7 +206,7 @@ def main():
             "cannot be computed; the app falls back to contest vote share and "
             "labels it as such.")
 
-    # ---- Check 4: reconcile against the county's OWN town-wide totals ------
+    # ---- Checks 4 and 6 both need the declared totals -----------------------
     # Summing the precinct rows and comparing that to itself would prove
     # nothing. The county publishes each candidate's town-wide total as a
     # separate figure; comparing the two is what actually catches a dropped,
@@ -223,6 +226,44 @@ def main():
             f"{os.path.basename(DECLARED)} not found -- the town-wide "
             "reconcile is SKIPPED, so a dropped precinct row would not be "
             "caught. Generate it with ingest_clarity_detail.py.")
+
+    # ---- Check 6: the town-wide mode split must reconcile ------------------
+    # A mode table that does not sum to the certified total is worse than none:
+    # it would put an exact-looking breakdown behind a wrong number.
+    town_modes = {}
+    if os.path.exists(TOWN_MODES):
+        with open(TOWN_MODES, newline="") as f:
+            for r in csv.DictReader(f):
+                try:
+                    y = int((r.get("year") or "").strip())
+                except ValueError:
+                    continue
+                cand = (r.get("candidate") or "").strip()
+                where = f"{os.path.basename(TOWN_MODES)} {y}/{cand}"
+                town_modes[(y, cand)] = {
+                    m: to_int(r.get(f"votes_{m}"), where, errors) for m in
+                    ["election_day", "early", "vbm", "provisional"]}
+        for (y, cand), m in sorted(town_modes.items()):
+            exp = declared.get((y, cand))
+            if exp is not None and sum(m.values()) != exp:
+                errors.append(
+                    f"{y} / {cand}: town-wide mode split sums to "
+                    f"{sum(m.values()):,} but the declared total is {exp:,}.")
+        for y in sorted({y for (y, _) in town_modes}):
+            cands = {c for (yy, c) in town_modes if yy == y}
+            missing = {c for (yy, c) in declared if yy == y} - cands
+            if missing:
+                errors.append(
+                    f"{y}: town-wide mode split missing for "
+                    + ", ".join(sorted(missing))
+                    + " -- a partial split would understate the field totals.")
+        if town_modes:
+            print(f"Town-wide mode split: reconciled {len(town_modes)} "
+                  f"candidate-year(s) against the declared totals.\n")
+    else:
+        warnings.append(
+            f"{os.path.basename(TOWN_MODES)} not found -- mode mix and the "
+            "contribution breakdown will be unavailable.")
 
     print(f"Geometry: {len(geo_districts)} {MUNICIPALITY} districts "
           f"({', '.join(f'{d:02d}' for d in sorted(geo_districts))}).\n")

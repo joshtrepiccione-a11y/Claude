@@ -44,6 +44,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 CSV_IN = os.path.join(ROOT, "data", "hammonton_boe_real.csv")
 GEOJSON_IN = os.path.join(ROOT, "data", "atlantic_precincts.geojson")
+TOWN_MODES = os.path.join(ROOT, "data", "hammonton_boe_townwide_modes.csv")
 OUT = os.path.join(ROOT, "hammonton-boe", "public", "data",
                    "hammonton_boe_precincts.geojson")
 
@@ -96,6 +97,21 @@ def main():
 
     years = sorted(votes)
 
+    # The county may publish a town-wide mode split even when it publishes no
+    # per-district one. Where present this table is authoritative for the
+    # town-wide figures; per-precinct mode measures still require district-level
+    # data and stay unavailable without it.
+    town_modes = {}   # (year, candidate) -> {mode: n}
+    if os.path.exists(TOWN_MODES):
+        with open(TOWN_MODES, newline="") as f:
+            for r in csv.DictReader(f):
+                try:
+                    y = int((r.get("year") or "").strip())
+                except ValueError:
+                    continue
+                town_modes[(y, (r.get("candidate") or "").strip())] = {
+                    m: i(r.get(f"votes_{m}")) for m in MODES}
+
     # ---- Town-wide totals, ranks, elected ---------------------------------
     warnings_townwide = []
     is_cand = is_candidate
@@ -111,6 +127,25 @@ def main():
             for c, rec in town_level[y][bucket].items():
                 for k in list(MODES) + ["total"]:
                     agg[c][k] += rec[k]
+        # Prefer the declared town-wide split; verify it against the rows
+        # wherever the rows carry modes too, so the two can never drift.
+        for c in list(agg):
+            declared_modes = town_modes.get((y, c))
+            if not declared_modes:
+                continue
+            from_rows = {m: agg[c][m] for m in MODES}
+            if any(from_rows.values()) and from_rows != declared_modes:
+                warnings_townwide.append(
+                    f"{y} / {c}: town-wide mode split {declared_modes} disagrees "
+                    f"with the sum of the rows {from_rows}.")
+            if sum(declared_modes.values()) != agg[c]["total"]:
+                warnings_townwide.append(
+                    f"{y} / {c}: town-wide mode split sums to "
+                    f"{sum(declared_modes.values())}, not the certified total "
+                    f"{agg[c]['total']}.")
+            for m in MODES:
+                agg[c][m] = declared_modes[m]
+
         contest_votes = sum(v["total"] for v in agg.values())
         totals_only = {c: v["total"] for c, v in agg.items() if is_cand(c)}
         # Standard competition ranking: equal totals share a rank, so no
@@ -137,15 +172,18 @@ def main():
         # Present the seated candidates strongest first, ballot order within a tie.
         elected.sort(key=lambda c: (rank[c], candidates[y].index(c)))
 
-        # Does any unit report a mode split this year?
-        mode_reported = any(
-            rec[m] for src in (votes[y], town_level[y]) for u in src
-            for rec in src[u].values() for m in MODES)
-        # Are the mode figures attributable to districts, or town-level only?
-        district_mode = any(
-            rec[m] for d in votes[y] for rec in votes[y][d].values() for m in MODES)
+        # What a DISTRICT row contains -- which is a different question from
+        # what is known town-wide, and the one the comparability note needs.
+        dist_modes = {m for d in votes[y] for rec in votes[y][d].values()
+                      for m in MODES if rec[m]}
+        district_basis = ("all-modes" if not dist_modes
+                          else "election-day" if dist_modes == {"election_day"}
+                          else "by-mode")
+        # How much mode detail exists at all, and at what level.
+        has_town = any((y, c) in town_modes for c in agg)
+        mode_reported = has_town or bool(dist_modes)
         coverage = ("none" if not mode_reported
-                    else "district" if district_mode and not town_level[y]
+                    else "district" if district_basis == "by-mode"
                     else "town-level")
 
         townwide[y] = {
@@ -167,6 +205,7 @@ def main():
             "elected": elected,
             "seatTie": bool(seat_tie),
             "modeCoverage": coverage,
+            "districtBasis": district_basis,
             "fieldModes": {m: sum(agg[c][m] for c in agg) for m in MODES},
             "townLevelUnits": {
                 u: {
@@ -183,7 +222,8 @@ def main():
     # A district row means different things in different years when one year
     # folds every mode in and another reports Election Day only.
     coverages = {y: townwide[y]["modeCoverage"] for y in years}
-    comparable = len(set(coverages.values())) <= 1
+    bases = {y: townwide[y]["districtBasis"] for y in years}
+    comparable = len(set(bases.values())) <= 1
     precinct_comparability = {
         "directlyComparable": comparable,
         "note": (
@@ -192,14 +232,15 @@ def main():
             "District rows are NOT the same electorate across years: "
             + "; ".join(
                 f"{y} districts are "
-                + ("Election Day only (mail/early/provisional reported town-wide)"
-                   if coverages[y] == "town-level"
-                   else "all modes combined" if coverages[y] == "none"
-                   else "split by mode")
+                + {"election-day": "Election Day only (mail, early and "
+                                   "provisional reported town-wide)",
+                   "all-modes": "all modes combined",
+                   "by-mode": "split by mode"}[bases[y]]
                 for y in years)
             + ". Town-wide totals are directly comparable; per-precinct changes "
               "also reflect this reporting difference."),
         "byYear": coverages,
+        "districtBasis": bases,
     }
 
     # ---- Focus candidate ---------------------------------------------------

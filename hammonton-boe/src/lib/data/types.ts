@@ -23,6 +23,19 @@ export const MODE_SHORT: Record<Mode, string> = {
 export type ModeCounts = Record<Mode, number>;
 
 /** How much vote-mode detail the county published for a given year. */
+/**
+ * What one district row covers. Distinct from `ModeCoverage`, which says how
+ * much mode detail exists town-wide — the two answer different questions and
+ * conflating them produced a wrong caveat.
+ */
+export type DistrictBasis =
+  /** Every mode folded into the district total. */
+  | "all-modes"
+  /** Polling-place returns only; other modes reported town-wide. */
+  | "election-day"
+  /** The district row itself is broken out by mode. */
+  | "by-mode";
+
 export type ModeCoverage =
   /** No split at all — every mode folded into the district totals. */
   | "none"
@@ -58,6 +71,8 @@ export interface YearTownwide {
   /** True when more candidates tie into the seat range than there are seats. */
   seatTie: boolean;
   modeCoverage: ModeCoverage;
+  /** What a DISTRICT row of this year actually contains. */
+  districtBasis: DistrictBasis;
   fieldModes: ModeCounts;
   townLevelUnits: Record<string, TownLevelUnit>;
 }
@@ -96,6 +111,7 @@ export interface PrecinctComparability {
   directlyComparable: boolean;
   note: string;
   byYear: Record<string, ModeCoverage>;
+  districtBasis: Record<string, DistrictBasis>;
 }
 
 export interface DataMeta {
