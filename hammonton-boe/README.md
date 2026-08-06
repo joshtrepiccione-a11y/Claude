@@ -22,8 +22,28 @@ npm run typecheck
 ```
 
 Deploy config is included for both hosts (`netlify.toml`, `vercel.json`); build
-`npm run build`, publish `dist`. On Netlify set the site's **Base directory** to
-`hammonton-boe`.
+`npm run build`, publish `dist`.
+
+### Netlify
+
+Create a **new** site — do not repoint the existing one. The repository root
+carries its own `netlify.toml` dedicating the current Netlify site to
+`v3-clerk`; changing that site's base directory would take the Clerk app down.
+
+1. Add new site → Import an existing project → this repository.
+2. Set **Base directory** to `hammonton-boe`. Leave build command and publish
+   directory blank — with the base set, Netlify reads `hammonton-boe/netlify.toml`,
+   which already specifies `npm install && npm run build`, `publish = "dist"`
+   (relative to the base) and Node 20.
+
+A one-click "Deploy to Netlify" badge is deliberately not offered here: it
+cannot set a base directory, so it would pick up the root config and deploy
+`v3-clerk` instead.
+
+### Vercel
+
+Add New → Project → import the repository → set **Root Directory** to
+`hammonton-boe`. `vercel.json` supplies the rest.
 
 ## Data pipeline
 
