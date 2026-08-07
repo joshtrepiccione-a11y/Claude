@@ -40,7 +40,7 @@ import sys
 import xml.etree.ElementTree as ET
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from hammonton_common import district_of, to_int  # noqa: E402
+from hammonton_common import district_of  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -126,17 +126,24 @@ def main():
         for p in vt.find("Precincts").findall("Precinct"):
             ballots[p.get("name")] = int(p.get("ballotsCast") or 0)
 
+    # Decide ONCE, over the whole contest, whether this export carries a real
+    # VoteType mode dimension. Deciding it mid-scan meant the first Choice was
+    # classified under the old assumption and later ones under the new, so the
+    # same reporting unit could get different modes for different candidates.
+    uses_votetype_modes = any(
+        VOTETYPE_MODES.get((vt.get("name") or "").strip().lower())
+        not in (None, "election_day")
+        for ch in contest.findall("Choice")
+        for vt in ch.findall("VoteType"))
+
     # cell[(precinct, candidate)][mode] = votes
     cell, precincts, candidates = {}, [], []
-    uses_votetype_modes = False
     for ch in contest.findall("Choice"):
         cand = clean(ch.get("text"))
         if cand not in candidates:
             candidates.append(cand)
         for vtype in ch.findall("VoteType"):
             vmode = VOTETYPE_MODES.get((vtype.get("name") or "").strip().lower())
-            if vmode and vmode != "election_day":
-                uses_votetype_modes = True
             for p in vtype.findall("Precinct"):
                 pname = p.get("name")
                 if pname not in precincts:
@@ -144,9 +151,9 @@ def main():
                 votes = int(p.get("votes") or 0)
                 # Mode comes from the VoteType when the export provides one,
                 # otherwise from the precinct label.
-                mode = vmode if vmode else mode_of(pname)
-                if vmode == "election_day" and not uses_votetype_modes:
-                    mode = mode_of(pname)
+                # With no real VoteType dimension the mode lives in the
+                # precinct label; with one, the VoteType wins.
+                mode = vmode if (vmode and uses_votetype_modes) else mode_of(pname)
                 k = (pname, cand)
                 cell.setdefault(k, {})
                 cell[k][mode] = cell[k].get(mode, 0) + votes

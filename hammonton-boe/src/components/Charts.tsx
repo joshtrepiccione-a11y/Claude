@@ -23,9 +23,12 @@ export interface RankedRow {
 export function RankedBars({
   rows,
   seatsUp,
+  seatTie,
 }: {
   rows: RankedRow[];
   seatsUp?: number;
+  /** More candidates tie into the seat range than there are seats. */
+  seatTie?: boolean;
 }) {
   const max = Math.max(1, ...rows.map((r) => r.votes));
   return (
@@ -69,12 +72,22 @@ export function RankedBars({
             />
           </div>
           {seatsUp !== undefined && i + 1 === seatsUp && (
-            <div className="relative mt-2 mb-1" aria-hidden="true">
-              <div className="border-t border-dashed border-slate-300" />
-              <span className="absolute -top-2 left-0 bg-white px-1 text-[10px] uppercase tracking-wide text-slate-400">
-                {seatsUp} seats
-              </span>
-            </div>
+            <>
+              <div className="relative mt-2 mb-1" aria-hidden="true">
+                <div className="border-t border-dashed border-slate-300" />
+                <span className="absolute -top-2 left-0 bg-white px-1 text-[10px] uppercase tracking-wide text-slate-400">
+                  {seatsUp} seats
+                </span>
+              </div>
+              {seatTie && (
+                <p className="text-[11px] text-amber-800 mt-1 leading-snug">
+                  More candidates tie into {seatsUp} seat
+                  {seatsUp === 1 ? "" : "s"} than there are seats, so a
+                  candidate below this line still shows as elected — the
+                  certified totals do not resolve who is seated.
+                </p>
+              )}
+            </>
           )}
         </li>
       ))}

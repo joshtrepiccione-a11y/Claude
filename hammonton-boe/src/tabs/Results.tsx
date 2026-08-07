@@ -61,8 +61,12 @@ export function Results({
   //                  modes are genuinely zero there.
   //   all-modes    : every mode is folded in, so a single mode is UNKNOWN per
   //                  district — showing 0 would invent a certified figure.
+  // Read the required per-year copy, and fail SAFE: an unknown basis must
+  // suppress district mode figures, never invent zeros for them.
   const basis: DistrictBasis =
-    data.meta.precinctComparability.districtBasis?.[year] ?? "by-mode";
+    tw.districtBasis ??
+    data.meta.precinctComparability.districtBasis?.[year] ??
+    "all-modes";
   const districtModeKnown = mode === "all" || basis !== "all-modes";
 
   return (
@@ -77,7 +81,14 @@ export function Results({
               label="Year"
               value={year}
               options={years.map((y) => ({ id: y, label: y }))}
-              onChange={setYear}
+              onChange={(y) => {
+                setYear(y);
+                // Same stranding the map guards against: a mode the new year
+                // does not report leaves its own button disabled and unclickable.
+                if (mode !== "all" && !availableModes(data, y).includes(mode)) {
+                  setMode("all");
+                }
+              }}
             />
           </div>
           <div>
@@ -136,7 +147,11 @@ export function Results({
             // The seat cutoff belongs to the town-wide, all-modes ranking.
             // Drawing it over a mode-filtered order would put a candidate who
             // was never elected above the line.
-            <RankedBars rows={rows} seatsUp={mode === "all" ? tw.seatsUp : undefined} />
+            <RankedBars
+              rows={rows}
+              seatsUp={mode === "all" ? tw.seatsUp : undefined}
+              seatTie={tw.seatTie}
+            />
           )}
         </Card>
 
@@ -241,13 +256,17 @@ export function Results({
                               c === focus ? "font-semibold text-focus-deep" : ""
                             }`}
                           >
-                            {/* Each bucket carries exactly one mode, so under a
-                                filter it contributes only to its own. */}
-                            {fmtInt(
-                              mode === "all" || u.mode === mode
-                                ? u.votes[c] ?? 0
-                                : 0,
-                            )}
+                            {/* u.votes is a total, not a per-mode breakdown, and
+                                u.mode is only the first mode found. Show the
+                                total when it is this unit's mode, 0 when the
+                                unit is single-mode and this is not it, and "—"
+                                when the unit spans modes so the split is
+                                unknown. */}
+                            {mode === "all" || u.mode === mode
+                              ? fmtInt(u.votes[c] ?? 0)
+                              : u.modeCount && u.modeCount > 1
+                              ? "—"
+                              : fmtInt(0)}
                           </td>
                         ))}
                         <td className="py-2 text-slate-400">—</td>

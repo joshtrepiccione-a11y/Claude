@@ -101,9 +101,9 @@ export function About({ data, focus }: { data: BoeData; focus: string }) {
                   {cov === "town-level" && basis === "election-day" && (
                     <>
                       District rows are <strong>Election Day only</strong>. Mail,
-                      early and provisional votes were reported as separate
-                      town-wide units ({units.join(", ")}), so they cannot be
-                      attributed to any one district.
+                      early and provisional votes were reported town-wide
+                      {units.length > 0 ? ` (${units.join(", ")})` : ""}, so they
+                      cannot be attributed to any one district.
                     </>
                   )}
                   {cov === "town-level" && basis === "all-modes" && (

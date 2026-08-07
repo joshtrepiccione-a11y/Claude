@@ -2,9 +2,9 @@
 // figures only. No swings, no projections, no interpolation — each function
 // here is arithmetic over numbers the county published.
 //
-// Where the county did not publish something (2023 vote modes, for instance),
-// the measure reports itself UNAVAILABLE with a reason rather than guessing.
-// Callers render the reason; they never substitute a number.
+// Where the county did not publish something (per-district vote modes, for
+// instance), the measure reports itself UNAVAILABLE with a reason rather than
+// guessing. Callers render the reason; they never substitute a number.
 
 import type {
   BoeData,
@@ -104,8 +104,6 @@ export interface ModeContribution {
   from: number;
   to: number;
   delta: number;
-  /** Share of the net gain this mode accounts for (signed gains only). */
-  shareOfGain: number;
 }
 
 export interface Turnaround {
@@ -150,10 +148,7 @@ export function turnaround(
       from: a.modes[m] || 0,
       to: b.modes[m] || 0,
       delta: (b.modes[m] || 0) - (a.modes[m] || 0),
-      shareOfGain: 0,
     }));
-    const gross = parts.reduce((s, p) => s + Math.abs(p.delta), 0);
-    for (const p of parts) p.shareOfGain = gross > 0 ? p.delta / gross : 0;
     contribution = { available: true, parts, netGain };
   }
 
@@ -211,10 +206,13 @@ function rankIn(
   const entries = Object.entries(y.candidates).filter(
     ([n]) => !isNonCandidate(n),
   );
-  if (entries.length === 0) return null;
-  entries.sort((p, q) => q[1].votes - p[1].votes);
-  const i = entries.findIndex(([n]) => n === focus);
-  return i < 0 ? null : i + 1;
+  const mine = entries.find(([n]) => n === focus);
+  if (!mine) return null;
+  // Standard competition ranking, matching the builder: count how many
+  // candidates STRICTLY exceed this one. Sorting and taking the index would
+  // resolve a tie by object-key order — a name-based tie-break by another
+  // name, which is exactly what the rest of the project refuses to do.
+  return 1 + entries.filter(([, c]) => c.votes > mine[1].votes).length;
 }
 
 export function precinctMeasures(
@@ -232,8 +230,7 @@ function measureFor(
   fromYear: string,
   toYear: string,
 ): PrecinctMeasure {
-  {
-    const p = f.properties;
+  const p = f.properties;
     const ya = p.years[fromYear];
     const yb = p.years[toYear];
     const ca = ya?.candidates[focus];
@@ -271,7 +268,6 @@ function measureFor(
       fromBallots: ya?.ballotsCast ?? null,
       toBallots: yb?.ballotsCast ?? null,
     };
-  }
 }
 
 /** Measures for a single precinct. */

@@ -67,7 +67,7 @@ python3 scripts/build_hammonton_boe.py
 | `data/hammonton_boe_declared_totals.csv` | the county's own town-wide total per candidate — an independent figure, not a sum of the rows |
 | `data/hammonton_boe_townwide_modes.csv` | the certified town-wide Election Day / Early / Mail / Provisional split per candidate |
 | `data/hammonton_boe_field_modes.csv` | the county's published total per mode — the second dimension check 6 reconciles against |
-| `scripts/hammonton_common.py` | the shared reporting-unit classifier all three scripts use |
+| `scripts/hammonton_common.py` | the shared reporting-unit classifier and data-file loaders all three scripts use |
 | `scripts/ingest_clarity_detail.py` | converts a county `detail.xml` into those rows — the numbers are machine-transcribed, never retyped |
 | `scripts/validate_hammonton_csv.py` | required columns, integer cells, precinct coverage, mode consistency, town-wide reconcile |
 | `scripts/build_hammonton_boe.py` | pivots to `public/data/hammonton_boe_precincts.geojson` |
@@ -93,9 +93,11 @@ that is exactly the shape of the one hand-derived row in the repo. The builder
 refuses to write a split that fails either check rather than shipping it with a
 warning.
 
-Ties are never broken by name. When two candidates share the top count in a
-precinct, the winner is recorded as tied rather than resolved — D03 in 2021 is
-a real 221–221 tie.
+Ties are never broken by name, anywhere. Every ranking — the builder's, the
+validator's and the app's — uses standard competition ranking, so equal totals
+share a rank rather than being ordered by whatever came first. A precinct whose
+top count is shared is recorded as **tied** rather than resolved: D03 in 2021 is
+a real 221–221 tie, and both candidates read "1st here".
 
 ### Sanity check the data reproduces
 
@@ -143,6 +145,17 @@ recorded in the `source` column.
 only in 2021 vs. all modes in 2023). Town-wide totals *are* directly
 comparable. The app carries this warning on the Turnaround table, in the
 precinct drawer, and on the About tab.
+
+## What the app will not do
+
+Where the county did not publish a figure, nothing renders a 0 in its place:
+
+- district cells for a mode that a year reports only town-wide read **"—"**,
+  and the CSV export leaves them **blank** rather than exporting 0;
+- map controls for such a mode are **disabled with a reason**;
+- a tied precinct shows both names and its own map fill;
+- if more candidates tie into the seat range than there are seats, the ranked
+  bars say so instead of implying the cutoff resolved it.
 
 ## Colour
 

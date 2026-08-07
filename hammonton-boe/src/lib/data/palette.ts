@@ -87,7 +87,10 @@ export function candidateColors(
     else if (focus && name === focus) out[name] = FOCUS_COLOR;
   }
   ordered.forEach((name, i) => {
-    out[name] = IDENTITY_SLOTS[i % IDENTITY_SLOTS.length];
+    // Never cycle: two candidates sharing a hue would break the legend and,
+    // on the choropleth, could put identical fills across a shared border.
+    // Past the palette, fall back to the neutral rather than repeat.
+    out[name] = IDENTITY_SLOTS[i] ?? NON_CANDIDATE_COLOR;
   });
   return out;
 }

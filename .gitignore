@@ -12,3 +12,7 @@ Thumbs.db
 # to produce data/atlantic_precincts.geojson; not committed because it
 # already lives in the joshtrepiccione-a11y/Claude NJ-2 repo.
 data/nj_cd2_precincts.geojson
+
+# Python bytecode
+__pycache__/
+*.pyc

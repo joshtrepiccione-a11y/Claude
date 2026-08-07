@@ -15,13 +15,6 @@ import re
 
 MODES = ["election_day", "early", "vbm", "provisional"]
 
-MODE_LABEL = {
-    "election_day": "Election Day",
-    "early": "Early Voting",
-    "vbm": "Vote by Mail",
-    "provisional": "Provisional",
-}
-
 # Ballot lines that are counted in the totals but can never occupy a seat.
 NON_CANDIDATE = re.compile(r"write[\s-]*in|personal\s+choice", re.I)
 
@@ -64,18 +57,35 @@ def to_int(v):
 # parsing here is the same lesson `district_of` taught: two copies drift, and
 # a drifted classifier produced a real bug.
 
+class DataFileError(Exception):
+    """A data file is malformed in a way that would silently lose votes."""
+
+
 def load_townwide_modes(path):
-    """(year, candidate) -> {mode: votes}. Empty dict when the file is absent."""
+    """(year, candidate) -> {mode: votes}. Empty dict when the file is absent.
+
+    Raises on a duplicate key: overwriting would apply the last row and drop
+    the first with no diagnostic, which is precisely how a stale copy-pasted
+    split would sneak in. Every other reader in this pipeline rejects
+    duplicates; these loaders must not be the lax ones.
+    """
     out = {}
     if not os.path.exists(path):
         return out
     with open(path, newline="") as f:
-        for r in csv.DictReader(f):
-            try:
-                year = int((r.get("year") or "").strip())
-            except ValueError:
+        for n, r in enumerate(csv.DictReader(f), start=2):
+            raw = (r.get("year") or "").strip()
+            if not raw:
                 continue
+            try:
+                year = int(raw)
+            except ValueError:
+                raise DataFileError(
+                    f"{path} row {n}: unparseable year {raw!r}")
             cand = (r.get("candidate") or "").strip()
+            if (year, cand) in out:
+                raise DataFileError(
+                    f"{path} row {n}: duplicate entry for {year} / {cand}")
             out[(year, cand)] = {m: to_int(r.get(f"votes_{m}")) for m in MODES}
     return out
 
@@ -86,12 +96,21 @@ def load_field_modes(path):
     if not os.path.exists(path):
         return out
     with open(path, newline="") as f:
-        for r in csv.DictReader(f):
-            try:
-                year = int((r.get("year") or "").strip())
-            except ValueError:
+        for n, r in enumerate(csv.DictReader(f), start=2):
+            raw = (r.get("year") or "").strip()
+            if not raw:
                 continue
+            try:
+                year = int(raw)
+            except ValueError:
+                raise DataFileError(
+                    f"{path} row {n}: unparseable year {raw!r}")
             mode = (r.get("mode") or "").strip()
-            if mode in MODES:
-                out.setdefault(year, {})[mode] = to_int(r.get("votes"))
+            if mode not in MODES:
+                raise DataFileError(
+                    f"{path} row {n}: unknown mode {mode!r}")
+            if mode in out.get(year, {}):
+                raise DataFileError(
+                    f"{path} row {n}: duplicate entry for {year} / {mode}")
+            out.setdefault(year, {})[mode] = to_int(r.get("votes"))
     return out

@@ -58,8 +58,12 @@ export interface CandidateTownwide {
 
 export interface TownLevelUnit {
   ballotsCast: number | null;
+  /** Totals per candidate. NOT a per-mode breakdown. */
   votes: Record<string, number>;
+  /** The unit's mode — only meaningful when `modeCount` is 1. */
   mode: Mode | null;
+  /** How many modes this unit spans. >1 means its split is unknown. */
+  modeCount?: number;
 }
 
 export interface YearTownwide {
@@ -111,7 +115,11 @@ export interface PrecinctComparability {
   directlyComparable: boolean;
   note: string;
   byYear: Record<string, ModeCoverage>;
-  /** Optional: absent in geojson written before this field existed. */
+  /**
+   * Mirrors YearTownwide.districtBasis. Optional because geojson written
+   * before this field existed lacks it — read `townwide[y].districtBasis`
+   * where the year is in hand.
+   */
   districtBasis?: Record<string, DistrictBasis>;
 }
 

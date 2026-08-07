@@ -66,6 +66,10 @@ export function PrecinctDrawer({
       return b.votes - a.votes;
     });
 
+  const basis =
+    tw?.districtBasis ??
+    data.meta.precinctComparability.districtBasis?.[year] ??
+    "all-modes";
   const mine = y?.candidates[focus];
   const hasModes = mine ? MODES.some((k) => (mine.modes[k] || 0) > 0) : false;
   // The pills describe the year on screen, which may be either end of the pair.
@@ -117,9 +121,17 @@ export function PrecinctDrawer({
         {hasModes && mine && (
           <div>
             <div className="text-xs uppercase tracking-wide text-slate-500 mb-2">
-              {focus}'s vote by mode
+              {focus}'s vote by mode, in this district
             </div>
             <StackedModeBar counts={mine.modes} label={`${year}`} />
+            {basis === "election-day" && (
+              <p className="text-[11px] text-slate-500 mt-1.5 leading-snug">
+                A {year} district row is the <strong>polling-place</strong>{" "}
+                return only. Mail, early and provisional votes were reported
+                town-wide and belong to no district, so this bar is not his
+                full mode mix here — see the Turnaround tab for that.
+              </p>
+            )}
           </div>
         )}
 

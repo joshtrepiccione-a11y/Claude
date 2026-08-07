@@ -18,6 +18,9 @@ export function turnaroundToCSV(
   focus: string,
   fromYear: string,
   toYear: string,
+  /** Years whose district rows combine every mode: their per-district mode
+   *  figures are unknown, so the cells must be blank, not 0. */
+  modeUnknown: { from: boolean; to: boolean } = { from: false, to: false },
 ): string {
   const headers = [
     "District",
@@ -53,8 +56,8 @@ export function turnaroundToCSV(
         r.deltaVotes,
         pct(r.deltaShare),
         r.flipped ? "yes" : "no",
-        ...MODES.map((m) => r.fromModes[m] || 0),
-        ...MODES.map((m) => r.toModes[m] || 0),
+        ...MODES.map((m) => (modeUnknown.from ? "" : r.fromModes[m] || 0)),
+        ...MODES.map((m) => (modeUnknown.to ? "" : r.toModes[m] || 0)),
       ].join(","),
     );
   }

@@ -40,7 +40,6 @@ Usage:
 import csv
 import json
 import os
-import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -65,7 +64,6 @@ MODE_COLS = [
     "votes_vbm",
     "votes_provisional",
 ]
-OPTIONAL = MODE_COLS + ["ballots_cast", "seats_up"]
 
 def to_int(v, where, errors):
     try:
@@ -110,7 +108,7 @@ def main():
     for ft in fc["features"]:
         if ft["properties"].get("municipality") == MUNICIPALITY:
             d = district_of(ft["properties"].get("precinct", ""))
-            if d:
+            if d is not None:   # the builder uses `is None`; 0 is a district
                 geo_districts.add(d)
     if not geo_districts:
         errors.append(f"no {MUNICIPALITY} districts found in {GEOJSON}")
@@ -120,6 +118,8 @@ def main():
     # by_year[year][candidate][district] = votes_total
     by_year = {}
     town_rows = {}           # year -> {candidate -> votes} for non-geographic rows
+    town_units = {}          # year -> set of non-geographic unit labels
+    town_unit_rows = {}      # year -> {unit -> row count}
     seats = {}               # year -> set of seats_up values seen
     ballots = {}             # (year, precinct) -> set of ballots_cast seen
     mode_reported = {}       # year -> bool, did any row carry a mode split
@@ -176,6 +176,10 @@ def main():
         if dist is None:
             town_rows.setdefault(year, {})
             town_rows[year][cand] = town_rows[year].get(cand, 0) + total
+            town_units.setdefault(year, set()).add(precinct)
+            town_unit_rows.setdefault(year, {})
+            town_unit_rows[year][precinct] = (
+                town_unit_rows[year].get(precinct, 0) + 1)
         else:
             by_year[year].setdefault(cand, {})
             if dist in by_year[year][cand]:
@@ -276,25 +280,34 @@ def main():
         print(f"Town-wide mode split: reconciled {checked} candidate-year(s) "
               f"against the declared totals.")
 
-        # Field totals: the second dimension.
+    # Field totals: the SECOND dimension, and independent of `declared` -- it
+    # must run even when the declared-totals file is missing, because it is the
+    # only check that sees votes moved between two modes of one candidate.
+    if town_modes:
         for y in sorted({y for (y, _) in town_modes}):
-            expected = field_modes.get(y)
-            if not expected:
+            expected = field_modes.get(y) or {}
+            missing_modes = [m for m in MODE_KEYS if m not in expected]
+            if missing_modes:
+                # Silently skipping a mode and then printing "reconciled"
+                # would report a check that never ran.
                 warnings.append(
-                    f"{y}: no published field mode totals on file, so votes "
-                    "moved between two modes of the same candidate would not "
-                    "be caught.")
-                continue
+                    f"{y}: no published field total for "
+                    + ", ".join(missing_modes)
+                    + " -- votes moved into those modes would not be caught.")
+            bad = False
             for mode in MODE_KEYS:
+                if mode not in expected:
+                    continue
                 got = sum(m[mode] for (yy, _), m in town_modes.items() if yy == y)
-                if mode in expected and got != expected[mode]:
+                if got != expected[mode]:
+                    bad = True
                     errors.append(
                         f"{y} / {mode}: candidate mode splits sum to {got:,} "
                         f"but the county's field total is {expected[mode]:,} "
                         f"(off by {got - expected[mode]:+,}).")
-            print(f"{y} -- field mode totals reconciled: "
-                  + ", ".join(f"{k}={expected[k]:,}" for k in MODE_KEYS
-                              if k in expected))
+            if expected and not bad and not missing_modes:
+                print(f"{y} -- field mode totals reconciled: "
+                      + ", ".join(f"{k}={expected[k]:,}" for k in MODE_KEYS))
         print()
 
     print(f"Geometry: {len(geo_districts)} {MUNICIPALITY} districts "
@@ -342,10 +355,20 @@ def main():
                  else "   [TOTALS-ONLY: no mode split reported]")
               + ("   [modes town-wide only]"
                  if has_town_split and not mode_reported.get(year) else ""))
-        ranked = sorted(
-            ((v, c) for c, v in totals.items() if not NON_CANDIDATE.search(c)),
-            reverse=True)
-        for rank, (v, c) in enumerate(ranked, start=1):
+        # Standard competition ranking, exactly as the builder does it: equal
+        # totals share a rank and are all marked elected, so the two scripts
+        # cannot report different winners from the same file.
+        real = {c: v for c, v in totals.items() if not NON_CANDIDATE.search(c)}
+        rank_of = {c: 1 + sum(1 for o in real.values() if o > v)
+                   for c, v in real.items()}
+        ranked = sorted(real.items(), key=lambda kv: (rank_of[kv[0]], kv[0]))
+        n_elected = sum(1 for c in real if seat_n and rank_of[c] <= seat_n)
+        if seat_n and n_elected > seat_n:
+            warnings.append(
+                f"{year}: {n_elected} candidates tie into {seat_n} seat(s) -- "
+                "the certified totals do not resolve who is seated.")
+        for c, v in ranked:
+            rank = rank_of[c]
             elected = "ELECTED" if seat_n and rank <= seat_n else ""
             share = (v / contest * 100) if contest else 0.0
             print(f"   {rank}. {c:24s} {v:>7,}  {share:5.2f}%  {elected}")
@@ -358,13 +381,15 @@ def main():
                 "Mode mix, mode lean and the mode contribution breakdown are "
                 "unavailable for this year.")
         elif not mode_reported.get(year):
-            print(f"        modes known town-wide only -- mode mix and the "
-                  f"contribution breakdown are available; per-district mode "
-                  f"measures are not.")
+            print("        modes known town-wide only -- mode mix and the "
+                  "contribution breakdown are available; per-district mode "
+                  "measures are not.")
         elif not prov_seen.get(year):
             warnings.append(f"{year}: provisional votes are absent or all zero.")
         if town_rows.get(year):
-            print(f"   (+ {len(town_rows[year])} town-level non-geographic row(s) "
+            n_units = len(town_units.get(year, ()))
+            n_rows = sum(town_unit_rows.get(year, {}).values())
+            print(f"   (+ {n_units} town-level unit(s), {n_rows} row(s) "
                   "-- excluded from the per-district reconcile)")
         print()
 

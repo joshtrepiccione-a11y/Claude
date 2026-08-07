@@ -18,5 +18,7 @@
     "types": ["vite/client"],
     "noEmit": true
   },
-  "include": ["src"]
+  // vite.config.ts is included so `npm run build` typechecks it too; a
+  // referenced composite project cannot also set noEmit, so this is simpler.
+  "include": ["src", "vite.config.ts"]
 }

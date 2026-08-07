@@ -124,9 +124,11 @@ export function Turnaround({
           <p className="mt-4 text-sm text-slate-700 bg-focus-soft border border-focus-ring rounded-lg px-3 py-2">
             <strong className="text-focus-deep">{focus}</strong> finished{" "}
             {ordinal(t.from.rank)} of {countCandidates(data, t.from.year)} in{" "}
-            {t.from.year} for {t.from.seatsUp} seats — not elected — and{" "}
+            {t.from.year} for {t.from.seatsUp} seats —{" "}
+            {t.from.elected ? "elected" : "not elected"} — and{" "}
             {ordinal(t.to.rank)} of {countCandidates(data, t.to.year)} in{" "}
-            {t.to.year} for {t.to.seatsUp} seats — elected. Both placements are
+            {t.to.year} for {t.to.seatsUp} seats —{" "}
+            {t.to.elected ? "elected" : "not elected"}. Both placements are
             derived from the certified town-wide totals, not entered by hand.
           </p>
         )}
@@ -268,7 +270,10 @@ export function Turnaround({
             onClick={() =>
               downloadFile(
                 `hammonton-boe-${focus.replace(/\W+/g, "-").toLowerCase()}-${fromYear}-${toYear}.csv`,
-                turnaroundToCSV(sorted, focus, fromYear, toYear),
+                turnaroundToCSV(sorted, focus, fromYear, toYear, {
+                  from: modeUnknownIn(data, fromYear),
+                  to: modeUnknownIn(data, toYear),
+                }),
               )
             }
           >
@@ -350,6 +355,14 @@ export function Turnaround({
       </p>
     </main>
   );
+}
+
+/** True when that year's district rows combine every mode, so a per-district
+ *  mode figure is unknown rather than zero. */
+function modeUnknownIn(data: BoeData, year: string): boolean {
+  return (data.meta.townwide[year]?.districtBasis ??
+    data.meta.precinctComparability.districtBasis?.[year] ??
+    "all-modes") === "all-modes";
 }
 
 function countCandidates(data: BoeData, year: string): number {

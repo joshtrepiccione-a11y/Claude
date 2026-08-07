@@ -36,19 +36,20 @@ carried into the output so the UI can state them plainly:
 import csv
 import json
 import os
-import re
 import sys
 from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from hammonton_common import (  # noqa: E402
-    district_of, is_candidate, load_townwide_modes, to_int as i)
+    district_of, is_candidate, load_field_modes, load_townwide_modes,
+    to_int as i)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 CSV_IN = os.path.join(ROOT, "data", "hammonton_boe_real.csv")
 GEOJSON_IN = os.path.join(ROOT, "data", "atlantic_precincts.geojson")
 TOWN_MODES = os.path.join(ROOT, "data", "hammonton_boe_townwide_modes.csv")
+FIELD_MODES = os.path.join(ROOT, "data", "hammonton_boe_field_modes.csv")
 OUT = os.path.join(ROOT, "hammonton-boe", "public", "data",
                    "hammonton_boe_precincts.geojson")
 
@@ -106,6 +107,7 @@ def main():
     # town-wide figures; per-precinct mode measures still require district-level
     # data and stay unavailable without it.
     town_modes = load_townwide_modes(TOWN_MODES)
+    field_modes = load_field_modes(FIELD_MODES)
 
     # ---- Town-wide totals, ranks, elected ---------------------------------
     warnings_townwide = []
@@ -148,6 +150,19 @@ def main():
                     f"{y} / {c}: town-wide mode split sums to "
                     f"{sum(declared_modes.values())}, not the certified total "
                     f"{agg[c]['total']}.")
+        if covered and field_modes.get(y):
+            for m in MODES:
+                exp = field_modes[y].get(m)
+                got = sum(town_modes[(y, c)][m] for c in covered)
+                if exp is not None and got != exp:
+                    fatal.append(
+                        f"{y} / {m}: candidate mode splits sum to {got:,} but "
+                        f"the county's field total is {exp:,} "
+                        f"(off by {got - exp:+,}).")
+        elif covered:
+            warnings_townwide.append(
+                f"{y}: no published field mode totals on file, so votes moved "
+                "between two modes of the same candidate would not be caught.")
         if fatal:
             sys.exit("REFUSING TO BUILD -- the town-wide mode split does not "
                      "reconcile:\n  " + "\n  ".join(fatal))
@@ -196,8 +211,11 @@ def main():
                         for m in MODES if rec[m]}
         has_town = bool(covered) and not uncovered
         mode_reported = has_town or bool(dist_modes) or bool(bucket_modes)
+        # "district" promises every mode measure works at precinct level, so
+        # it requires by-mode districts AND no leftover town-level bucket.
         coverage = ("none" if not mode_reported
-                    else "district" if district_basis == "by-mode"
+                    else "district"
+                    if district_basis == "by-mode" and not town_level[y]
                     else "town-level")
 
         townwide[y] = {
@@ -225,9 +243,15 @@ def main():
                 u: {
                     "ballotsCast": ballots[y].get(u),
                     "votes": {c: rec["total"] for c, rec in town_level[y][u].items()},
+                    # `mode` is only meaningful when the unit spans exactly
+                    # one mode; `modeCount` lets the UI tell that case from a
+                    # combined unit, whose per-mode split it does not know.
                     "mode": next((m for m in MODES
                                   if any(rec[m] for rec in town_level[y][u].values())),
                                  None),
+                    "modeCount": sum(
+                        1 for m in MODES
+                        if any(rec[m] for rec in town_level[y][u].values())),
                 }
                 for u in town_level[y]
             },
@@ -262,7 +286,10 @@ def main():
     focus = next((c for c in all_names if FOCUS_MATCH in c.lower()), None)
 
     # ---- Geometry ----------------------------------------------------------
-    fc = json.load(open(GEOJSON_IN))
+    if not os.path.exists(GEOJSON_IN):
+        sys.exit(f"missing {GEOJSON_IN}")
+    with open(GEOJSON_IN) as fh:
+        fc = json.load(fh)
     feats = [ft for ft in fc["features"]
              if ft["properties"].get("municipality") == MUNICIPALITY]
     if not feats:

@@ -262,13 +262,17 @@ function modeBlocked(ctx: MetricContext, years: string[]): string | null {
   const missing = years.filter((y) => !hasPrecinctMode(ctx.data, y, ctx.mode as Mode));
   if (missing.length === 0) return null;
   const label = MODE_LABEL[ctx.mode as Mode];
+  // "bucket" is only true where the county actually reported separate
+  // town-level units; a year that merely publishes a town-wide breakdown has
+  // no buckets at all.
+  const viaBuckets = missing.some(
+    (y) => Object.keys(ctx.data.meta.townwide[y]?.townLevelUnits ?? {}).length > 0,
+  );
   return (
-    `${missing.join(" and ")} ${label} votes are not reported per precinct` +
-    `${missing.some((y) => ctx.data.meta.townwide[y]?.modeCoverage === "town-level")
-      ? " — the county published them only as a town-wide bucket"
-      : ""}` +
-    `, so this cannot be mapped by district. Switch to All, or see the ` +
-    `Turnaround and Results tabs for the town-wide figures.`
+    `${missing.join(" and ")} ${label} votes are not reported per district` +
+    `${viaBuckets ? " — the county reported them as separate town-wide units" : ""}` +
+    `, so this cannot be mapped. Switch to All, or see the Turnaround and ` +
+    `Results tabs for the town-wide figures.`
   );
 }
 
