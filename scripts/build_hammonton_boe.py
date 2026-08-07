@@ -12,9 +12,9 @@ Writes:
 
 Everything written is REAL and certified, or a direct arithmetic consequence of
 certified numbers (sums, shares, ranks). Nothing is interpolated, modeled, or
-spread across units. Where the county did not report something -- 2023 vote
-modes, for instance -- the output records that it is unavailable rather than
-inventing a value.
+spread across units. Where the county did not report something -- per-district
+vote modes, for instance -- the output records that it is unavailable rather
+than inventing a value.
 
 Two structural facts about the source data drive the schema, and both are
 carried into the output so the UI can state them plainly:
@@ -22,7 +22,10 @@ carried into the output so the UI can state them plainly:
   1. Vote-mode coverage differs by year. In 2021 the county reported districts
      as Election Day returns with mail / early / provisional as TOWN-LEVEL
      buckets; in 2023 it folded every mode into the district rows and published
-     no split at all. `modeCoverage` per year records which it is.
+     the split only town-wide (see data/hammonton_boe_townwide_modes.csv).
+     Either way the split is known town-wide and NOT per district.
+     `modeCoverage` records how much detail exists; `districtBasis` records
+     what one district row actually contains -- different questions.
 
   2. Because of (1), a district's 2021 row and its 2023 row do not describe the
      same electorate (Election Day only vs. all modes). Town-wide totals ARE
@@ -38,7 +41,8 @@ import sys
 from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from hammonton_common import district_of, is_candidate, to_int as i  # noqa: E402
+from hammonton_common import (  # noqa: E402
+    district_of, is_candidate, load_townwide_modes, to_int as i)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -101,16 +105,7 @@ def main():
     # per-district one. Where present this table is authoritative for the
     # town-wide figures; per-precinct mode measures still require district-level
     # data and stay unavailable without it.
-    town_modes = {}   # (year, candidate) -> {mode: n}
-    if os.path.exists(TOWN_MODES):
-        with open(TOWN_MODES, newline="") as f:
-            for r in csv.DictReader(f):
-                try:
-                    y = int((r.get("year") or "").strip())
-                except ValueError:
-                    continue
-                town_modes[(y, (r.get("candidate") or "").strip())] = {
-                    m: i(r.get(f"votes_{m}")) for m in MODES}
+    town_modes = load_townwide_modes(TOWN_MODES)
 
     # ---- Town-wide totals, ranks, elected ---------------------------------
     warnings_townwide = []
@@ -129,22 +124,36 @@ def main():
                     agg[c][k] += rec[k]
         # Prefer the declared town-wide split; verify it against the rows
         # wherever the rows carry modes too, so the two can never drift.
-        for c in list(agg):
-            declared_modes = town_modes.get((y, c))
-            if not declared_modes:
-                continue
+        # A split that does not reconcile is worse than none: it puts an
+        # exact-looking breakdown behind a wrong number. Refuse to write it
+        # rather than warning and applying it anyway.
+        fatal = []
+        covered = {c for c in agg if (y, c) in town_modes}
+        uncovered = sorted(set(agg) - covered)
+        if covered and uncovered:
+            fatal.append(
+                f"{y}: town-wide mode split covers {len(covered)} of "
+                f"{len(agg)} choices; missing " + ", ".join(uncovered)
+                + ". A partial split understates the field mix and inflates "
+                  "every candidate's lean.")
+        for c in sorted(covered):
+            declared_modes = town_modes[(y, c)]
             from_rows = {m: agg[c][m] for m in MODES}
             if any(from_rows.values()) and from_rows != declared_modes:
-                warnings_townwide.append(
-                    f"{y} / {c}: town-wide mode split {declared_modes} disagrees "
-                    f"with the sum of the rows {from_rows}.")
+                fatal.append(
+                    f"{y} / {c}: town-wide mode split {declared_modes} "
+                    f"disagrees with the sum of the rows {from_rows}.")
             if sum(declared_modes.values()) != agg[c]["total"]:
-                warnings_townwide.append(
+                fatal.append(
                     f"{y} / {c}: town-wide mode split sums to "
                     f"{sum(declared_modes.values())}, not the certified total "
                     f"{agg[c]['total']}.")
+        if fatal:
+            sys.exit("REFUSING TO BUILD -- the town-wide mode split does not "
+                     "reconcile:\n  " + "\n  ".join(fatal))
+        for c in covered:
             for m in MODES:
-                agg[c][m] = declared_modes[m]
+                agg[c][m] = town_modes[(y, c)][m]
 
         contest_votes = sum(v["total"] for v in agg.values())
         totals_only = {c: v["total"] for c, v in agg.items() if is_cand(c)}
@@ -179,9 +188,14 @@ def main():
         district_basis = ("all-modes" if not dist_modes
                           else "election-day" if dist_modes == {"election_day"}
                           else "by-mode")
-        # How much mode detail exists at all, and at what level.
-        has_town = any((y, c) in town_modes for c in agg)
-        mode_reported = has_town or bool(dist_modes)
+        # How much mode detail exists at all, and at what level. Town-level
+        # BUCKET rows are mode evidence too -- dropping them would classify a
+        # bucket-only year as having no modes while its fieldModes were
+        # non-zero.
+        bucket_modes = {m for u in town_level[y] for rec in town_level[y][u].values()
+                        for m in MODES if rec[m]}
+        has_town = bool(covered) and not uncovered
+        mode_reported = has_town or bool(dist_modes) or bool(bucket_modes)
         coverage = ("none" if not mode_reported
                     else "district" if district_basis == "by-mode"
                     else "town-level")

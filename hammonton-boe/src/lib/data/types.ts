@@ -22,7 +22,6 @@ export const MODE_SHORT: Record<Mode, string> = {
 
 export type ModeCounts = Record<Mode, number>;
 
-/** How much vote-mode detail the county published for a given year. */
 /**
  * What one district row covers. Distinct from `ModeCoverage`, which says how
  * much mode detail exists town-wide — the two answer different questions and
@@ -36,6 +35,7 @@ export type DistrictBasis =
   /** The district row itself is broken out by mode. */
   | "by-mode";
 
+/** How much vote-mode detail the county published for a given year. */
 export type ModeCoverage =
   /** No split at all — every mode folded into the district totals. */
   | "none"
@@ -111,7 +111,8 @@ export interface PrecinctComparability {
   directlyComparable: boolean;
   note: string;
   byYear: Record<string, ModeCoverage>;
-  districtBasis: Record<string, DistrictBasis>;
+  /** Optional: absent in geojson written before this field existed. */
+  districtBasis?: Record<string, DistrictBasis>;
 }
 
 export interface DataMeta {

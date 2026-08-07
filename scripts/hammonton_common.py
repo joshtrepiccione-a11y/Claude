@@ -9,6 +9,8 @@ validator and a town-level bucket to the builder. The coverage check only means
 something if all three classify identically.
 """
 
+import csv
+import os
 import re
 
 MODES = ["election_day", "early", "vbm", "provisional"]
@@ -55,3 +57,41 @@ def to_int(v):
     if v == "":
         return 0
     return int(float(v))
+
+
+# ---- Shared loaders -------------------------------------------------------
+# The builder and the validator MUST read these files identically. Keeping the
+# parsing here is the same lesson `district_of` taught: two copies drift, and
+# a drifted classifier produced a real bug.
+
+def load_townwide_modes(path):
+    """(year, candidate) -> {mode: votes}. Empty dict when the file is absent."""
+    out = {}
+    if not os.path.exists(path):
+        return out
+    with open(path, newline="") as f:
+        for r in csv.DictReader(f):
+            try:
+                year = int((r.get("year") or "").strip())
+            except ValueError:
+                continue
+            cand = (r.get("candidate") or "").strip()
+            out[(year, cand)] = {m: to_int(r.get(f"votes_{m}")) for m in MODES}
+    return out
+
+
+def load_field_modes(path):
+    """year -> {mode: votes}, the county's published field totals per mode."""
+    out = {}
+    if not os.path.exists(path):
+        return out
+    with open(path, newline="") as f:
+        for r in csv.DictReader(f):
+            try:
+                year = int((r.get("year") or "").strip())
+            except ValueError:
+                continue
+            mode = (r.get("mode") or "").strip()
+            if mode in MODES:
+                out.setdefault(year, {})[mode] = to_int(r.get("votes"))
+    return out

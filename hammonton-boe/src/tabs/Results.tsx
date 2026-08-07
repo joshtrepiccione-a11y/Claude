@@ -6,6 +6,7 @@ import type { BoeData, Mode } from "../lib/data/types";
 import { MODES, MODE_LABEL } from "../lib/data/types";
 import { isNonCandidate } from "../lib/data/palette";
 import { availableModes, colorsForYear, fmtInt, fmtPct, ordinal } from "../lib/measures";
+import type { DistrictBasis } from "../lib/data/types";
 import { RankedBars, type RankedRow } from "../components/Charts";
 import { Button, Card, Legend, Pill, Segmented, Swatch, Unavailable } from "../components/UI";
 import { downloadFile, resultsToCSV } from "../lib/export/csv";
@@ -54,6 +55,15 @@ export function Results({
     });
 
   const townUnits = Object.entries(tw.townLevelUnits ?? {});
+
+  // What a district cell can honestly say under a mode filter.
+  //   election-day : districts ARE the Election Day returns, so the other
+  //                  modes are genuinely zero there.
+  //   all-modes    : every mode is folded in, so a single mode is UNKNOWN per
+  //                  district — showing 0 would invent a certified figure.
+  const basis: DistrictBasis =
+    data.meta.precinctComparability.districtBasis?.[year] ?? "by-mode";
+  const districtModeKnown = mode === "all" || basis !== "all-modes";
 
   return (
     <main className="max-w-[1500px] mx-auto p-4 space-y-4">
@@ -139,6 +149,15 @@ export function Results({
               items={ballot.map((c) => ({ c: colors[c] ?? "#a3aacb", l: c }))}
             />
           </div>
+          {!districtModeKnown && (
+            <p className="mb-3 text-xs text-slate-600 bg-amber-50 border border-amber-100 rounded-md px-3 py-2 leading-snug">
+              <strong>Not known by district.</strong> {year} district rows
+              combine every vote mode, so {MODE_LABEL[mode as Mode]} cannot be
+              broken out per district — those cells read “—” rather than 0. The
+              town-wide row below is the certified {MODE_LABEL[mode as Mode]}{" "}
+              figure.
+            </p>
+          )}
           <div className="overflow-x-auto thin-scroll -mx-4 px-4">
             <table className="data-table w-full text-sm min-w-[700px]">
               <thead>
@@ -179,7 +198,7 @@ export function Results({
                               c === focus ? "font-semibold text-focus-deep" : ""
                             }`}
                           >
-                            {fmtInt(v)}
+                            {districtModeKnown ? fmtInt(v) : "—"}
                           </td>
                         );
                       })}
@@ -222,7 +241,13 @@ export function Results({
                               c === focus ? "font-semibold text-focus-deep" : ""
                             }`}
                           >
-                            {fmtInt(u.votes[c] ?? 0)}
+                            {/* Each bucket carries exactly one mode, so under a
+                                filter it contributes only to its own. */}
+                            {fmtInt(
+                              mode === "all" || u.mode === mode
+                                ? u.votes[c] ?? 0
+                                : 0,
+                            )}
                           </td>
                         ))}
                         <td className="py-2 text-slate-400">—</td>

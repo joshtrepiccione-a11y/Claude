@@ -1,0 +1,9 @@
+year,mode,votes,source
+2021,early,1442,Clarity detail.xml reporting units (Dist 01-07 + Mail-in / EV / Provisional / EV Prov)
+2021,election_day,7443,Clarity detail.xml reporting units (Dist 01-07 + Mail-in / EV / Provisional / EV Prov)
+2021,provisional,179,Clarity detail.xml reporting units (Dist 01-07 + Mail-in / EV / Provisional / EV Prov)
+2021,vbm,1776,Clarity detail.xml reporting units (Dist 01-07 + Mail-in / EV / Provisional / EV Prov)
+2023,early,1111,"Atlantic County certified results, field mode totals"
+2023,election_day,6093,"Atlantic County certified results, field mode totals"
+2023,provisional,83,"Atlantic County certified results, field mode totals"
+2023,vbm,1544,"Atlantic County certified results, field mode totals"

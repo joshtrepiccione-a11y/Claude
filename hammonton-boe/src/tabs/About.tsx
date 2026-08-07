@@ -89,7 +89,7 @@ export function About({ data, focus }: { data: BoeData; focus: string }) {
           {meta.years.map((y) => {
             const cov = meta.precinctComparability.byYear[y];
             const basis = meta.precinctComparability.districtBasis?.[y];
-            const units = Object.keys(meta.townwide[y].townLevelUnits);
+            const units = Object.keys(meta.townwide[y].townLevelUnits ?? {});
             return (
               <li key={y} className="flex gap-3">
                 <Pill tone="outline" className="shrink-0 h-fit">
@@ -122,6 +122,16 @@ export function About({ data, focus }: { data: BoeData; focus: string }) {
                       for this year.
                     </>
                   )}
+                  {/* Fallback: never leave the bullet blank if a field is
+                      missing (an older cached geojson has no districtBasis). */}
+                  {cov === "town-level" &&
+                    basis !== "election-day" &&
+                    basis !== "all-modes" && (
+                      <>
+                        Vote modes are reported <strong>town-wide only</strong>,
+                        not per district.
+                      </>
+                    )}
                 </span>
               </li>
             );

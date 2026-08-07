@@ -182,7 +182,7 @@ export function Turnaround({
                     {y.year}
                     {y.modeCoverage === "town-level" && (
                       <span className="ml-1 normal-case tracking-normal text-slate-400">
-                        (town-wide — not available by district)
+                        (town-wide)
                       </span>
                     )}
                   </div>

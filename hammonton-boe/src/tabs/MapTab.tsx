@@ -8,7 +8,7 @@ import {
   type MetricContext,
   type MetricId,
 } from "../lib/data/mapLayers";
-import { availableModes } from "../lib/measures";
+import { hasPrecinctMode } from "../lib/measures";
 import { useApp } from "../state/store";
 import { PrecinctMap } from "../components/PrecinctMap";
 import { PrecinctDrawer } from "../components/Drawer";
@@ -36,7 +36,10 @@ export function MapTab({
   const [fromYear, toYear] = chronological(ctx);
   const metricTitle =
     metric.id === "change" ? `${fromYear} → ${toYear} change` : metric.label;
-  const modesHere = availableModes(data, state.year);
+  // The map draws districts, so it must offer only modes that exist AT
+  // district level. Town-wide availability would light up buttons whose every
+  // metric then refuses to render.
+  const modesHere = MODES.filter((m) => hasPrecinctMode(data, state.year, m));
 
   const selected = useMemo(
     () =>
@@ -76,7 +79,7 @@ export function MapTab({
                 // whose button is disabled — including its own.
                 if (
                   state.mode !== "all" &&
-                  !availableModes(data, y).includes(state.mode)
+                  !hasPrecinctMode(data, y, state.mode)
                 ) {
                   dispatch({ type: "setMode", mode: "all" });
                 }
@@ -94,7 +97,7 @@ export function MapTab({
                   label: MODE_LABEL[m],
                   disabledReason: modesHere.includes(m)
                     ? null
-                    : `${state.year}: the county reported no ${MODE_LABEL[m]} figures for this contest.`,
+                    : `${state.year} ${MODE_LABEL[m]} votes are not reported per district, so they cannot be mapped. The Turnaround and Results tabs show the town-wide figures.`,
                 })),
               ]}
               onChange={(m) => dispatch({ type: "setMode", mode: m as Mode | "all" })}
