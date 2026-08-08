@@ -68,7 +68,7 @@ function Shell({ data }: { data: BoeData }) {
   const focus = state.focus ?? data.meta.allCandidates[0] ?? "";
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 md:pb-0">
+    <div className="min-h-screen bg-slate-50">
       <Nav data={data} />
       {state.tab === "turnaround" && (
         <Turnaround

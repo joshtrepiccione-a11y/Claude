@@ -49,7 +49,7 @@ export function Nav({ data }: { data: BoeData }) {
           </div>
 
           <nav
-            className="hidden md:flex items-center gap-1 grow"
+            className="flex items-center gap-1 flex-wrap order-3 w-full md:order-none md:w-auto md:grow"
             aria-label="Primary"
           >
             {TABS.map((t) => {
@@ -58,7 +58,7 @@ export function Nav({ data }: { data: BoeData }) {
                 <button
                   key={t.id}
                   onClick={() => dispatch({ type: "setTab", tab: t.id })}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition min-h-[44px] sm:min-h-0 ${
                     active
                       ? "bg-white text-ink-900"
                       : "text-ink-100 hover:bg-ink-800"
@@ -91,30 +91,6 @@ export function Nav({ data }: { data: BoeData }) {
         </div>
       </header>
 
-      {/* Mobile bottom tab bar */}
-      <nav
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-ink-900 border-t border-ink-700 grid grid-cols-4"
-        aria-label="Primary mobile"
-      >
-        {TABS.map((t) => {
-          const active = state.tab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => dispatch({ type: "setTab", tab: t.id })}
-              className={`flex flex-col items-center justify-center py-2 min-h-[56px] text-[10px] font-medium ${
-                active ? "text-white" : "text-ink-300"
-              }`}
-              aria-current={active ? "page" : undefined}
-            >
-              <span className="text-base leading-none mb-0.5" aria-hidden="true">
-                {t.icon}
-              </span>
-              {t.label}
-            </button>
-          );
-        })}
-      </nav>
     </>
   );
 }
