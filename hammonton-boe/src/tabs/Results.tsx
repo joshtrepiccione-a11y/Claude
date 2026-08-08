@@ -155,7 +155,12 @@ export function Results({
           )}
         </Card>
 
+        {/* min-w-0: a grid item defaults to min-width:auto, so the table's
+            min-w-[700px] widens the whole column -- which at one column is the
+            whole page -- and the page scrolls sideways instead of the table
+            scrolling inside its own overflow-x-auto wrapper. */}
         <Card
+          className="min-w-0"
           title={`By district, ${year}`}
           subtitle="Certified votes per candidate"
         >

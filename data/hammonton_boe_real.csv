@@ -76,45 +76,45 @@ year,precinct,candidate,votes_total,votes_election_day,votes_early,votes_vbm,vot
 2021,Hammonton Town 07,Luke Coia,175,175,,,,553,3
 2021,Hammonton Town 07,Mickey Pullia,186,186,,,,553,3
 2021,Hammonton Town 07,Personal Choice,2,2,,,,553,3
-2023,Hammonton Town 01,Mickey Pullia,336,,,,,,3
-2023,Hammonton Town 01,Kelli Fallon,381,,,,,,3
-2023,Hammonton Town 01,Raymond Scipione,377,,,,,,3
-2023,Hammonton Town 01,Bob Lolio,268,,,,,,3
-2023,Hammonton Town 01,Shawn K. McCloud,288,,,,,,3
-2023,Hammonton Town 01,WRITE-IN,10,,,,,,3
-2023,Hammonton Town 02,Mickey Pullia,234,,,,,,3
-2023,Hammonton Town 02,Kelli Fallon,220,,,,,,3
-2023,Hammonton Town 02,Raymond Scipione,266,,,,,,3
-2023,Hammonton Town 02,Bob Lolio,168,,,,,,3
-2023,Hammonton Town 02,Shawn K. McCloud,190,,,,,,3
-2023,Hammonton Town 02,WRITE-IN,5,,,,,,3
-2023,Hammonton Town 03,Mickey Pullia,314,,,,,,3
-2023,Hammonton Town 03,Kelli Fallon,350,,,,,,3
-2023,Hammonton Town 03,Raymond Scipione,305,,,,,,3
-2023,Hammonton Town 03,Bob Lolio,213,,,,,,3
-2023,Hammonton Town 03,Shawn K. McCloud,238,,,,,,3
-2023,Hammonton Town 03,WRITE-IN,10,,,,,,3
-2023,Hammonton Town 04,Mickey Pullia,172,,,,,,3
-2023,Hammonton Town 04,Kelli Fallon,232,,,,,,3
-2023,Hammonton Town 04,Raymond Scipione,172,,,,,,3
-2023,Hammonton Town 04,Bob Lolio,158,,,,,,3
-2023,Hammonton Town 04,Shawn K. McCloud,125,,,,,,3
-2023,Hammonton Town 04,WRITE-IN,1,,,,,,3
-2023,Hammonton Town 05,Mickey Pullia,257,,,,,,3
-2023,Hammonton Town 05,Kelli Fallon,381,,,,,,3
-2023,Hammonton Town 05,Raymond Scipione,283,,,,,,3
-2023,Hammonton Town 05,Bob Lolio,226,,,,,,3
-2023,Hammonton Town 05,Shawn K. McCloud,290,,,,,,3
-2023,Hammonton Town 05,WRITE-IN,7,,,,,,3
-2023,Hammonton Town 06,Mickey Pullia,200,,,,,,3
-2023,Hammonton Town 06,Kelli Fallon,234,,,,,,3
-2023,Hammonton Town 06,Raymond Scipione,226,,,,,,3
-2023,Hammonton Town 06,Bob Lolio,175,,,,,,3
-2023,Hammonton Town 06,Shawn K. McCloud,193,,,,,,3
-2023,Hammonton Town 06,WRITE-IN,3,,,,,,3
-2023,Hammonton Town 07,Mickey Pullia,261,,,,,,3
-2023,Hammonton Town 07,Kelli Fallon,310,,,,,,3
-2023,Hammonton Town 07,Raymond Scipione,269,,,,,,3
-2023,Hammonton Town 07,Bob Lolio,209,,,,,,3
-2023,Hammonton Town 07,Shawn K. McCloud,268,,,,,,3
-2023,Hammonton Town 07,WRITE-IN,6,,,,,,3
+2023,Hammonton Town 01,Mickey Pullia,336,,,,,672,3
+2023,Hammonton Town 01,Kelli Fallon,381,,,,,672,3
+2023,Hammonton Town 01,Raymond Scipione,377,,,,,672,3
+2023,Hammonton Town 01,Bob Lolio,268,,,,,672,3
+2023,Hammonton Town 01,Shawn K. McCloud,288,,,,,672,3
+2023,Hammonton Town 01,WRITE-IN,10,,,,,672,3
+2023,Hammonton Town 02,Mickey Pullia,234,,,,,445,3
+2023,Hammonton Town 02,Kelli Fallon,220,,,,,445,3
+2023,Hammonton Town 02,Raymond Scipione,266,,,,,445,3
+2023,Hammonton Town 02,Bob Lolio,168,,,,,445,3
+2023,Hammonton Town 02,Shawn K. McCloud,190,,,,,445,3
+2023,Hammonton Town 02,WRITE-IN,5,,,,,445,3
+2023,Hammonton Town 03,Mickey Pullia,314,,,,,595,3
+2023,Hammonton Town 03,Kelli Fallon,350,,,,,595,3
+2023,Hammonton Town 03,Raymond Scipione,305,,,,,595,3
+2023,Hammonton Town 03,Bob Lolio,213,,,,,595,3
+2023,Hammonton Town 03,Shawn K. McCloud,238,,,,,595,3
+2023,Hammonton Town 03,WRITE-IN,10,,,,,595,3
+2023,Hammonton Town 04,Mickey Pullia,172,,,,,375,3
+2023,Hammonton Town 04,Kelli Fallon,232,,,,,375,3
+2023,Hammonton Town 04,Raymond Scipione,172,,,,,375,3
+2023,Hammonton Town 04,Bob Lolio,158,,,,,375,3
+2023,Hammonton Town 04,Shawn K. McCloud,125,,,,,375,3
+2023,Hammonton Town 04,WRITE-IN,1,,,,,375,3
+2023,Hammonton Town 05,Mickey Pullia,257,,,,,610,3
+2023,Hammonton Town 05,Kelli Fallon,381,,,,,610,3
+2023,Hammonton Town 05,Raymond Scipione,283,,,,,610,3
+2023,Hammonton Town 05,Bob Lolio,226,,,,,610,3
+2023,Hammonton Town 05,Shawn K. McCloud,290,,,,,610,3
+2023,Hammonton Town 05,WRITE-IN,7,,,,,610,3
+2023,Hammonton Town 06,Mickey Pullia,200,,,,,421,3
+2023,Hammonton Town 06,Kelli Fallon,234,,,,,421,3
+2023,Hammonton Town 06,Raymond Scipione,226,,,,,421,3
+2023,Hammonton Town 06,Bob Lolio,175,,,,,421,3
+2023,Hammonton Town 06,Shawn K. McCloud,193,,,,,421,3
+2023,Hammonton Town 06,WRITE-IN,3,,,,,421,3
+2023,Hammonton Town 07,Mickey Pullia,261,,,,,576,3
+2023,Hammonton Town 07,Kelli Fallon,310,,,,,576,3
+2023,Hammonton Town 07,Raymond Scipione,269,,,,,576,3
+2023,Hammonton Town 07,Bob Lolio,209,,,,,576,3
+2023,Hammonton Town 07,Shawn K. McCloud,268,,,,,576,3
+2023,Hammonton Town 07,WRITE-IN,6,,,,,576,3

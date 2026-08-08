@@ -79,6 +79,38 @@ function supportOf(f: PrecinctFeature, ctx: MetricContext, year: string): number
   return c.supportRate;
 }
 
+/**
+ * The range a sequential metric actually spans across the mapped districts.
+ *
+ * A fixed domain (say 0–60% support) puts every Hammonton district in the top
+ * two steps of the ramp and the map reads as one flat colour, hiding a real
+ * 7-point spread. Scaling to the observed range shows it — but stretching a
+ * narrow range across a full ramp can just as easily imply a difference that
+ * is not there, so the legend below is labelled with these endpoints rather
+ * than a bare "Lower → Higher". The reader sees the span, not just the ramp.
+ */
+function rangeOf(
+  ctx: MetricContext,
+  value: (f: PrecinctFeature) => number | null,
+): { min: number; max: number } | null {
+  const vs = ctx.data.features
+    .map(value)
+    .filter((v): v is number => v !== null && isFinite(v));
+  if (!vs.length) return null;
+  return { min: Math.min(...vs), max: Math.max(...vs) };
+}
+
+/** Position within the observed range; mid-ramp when every value is equal. */
+function within(v: number, r: { min: number; max: number } | null): number {
+  if (!r || r.max === r.min) return 0.5;
+  return (v - r.min) / (r.max - r.min);
+}
+
+const ballotsOf =
+  (ctx: MetricContext) =>
+  (f: PrecinctFeature): number | null =>
+    f.properties.years[ctx.year]?.ballotsCast ?? null;
+
 export const METRICS: MetricConfig[] = [
   {
     id: "change",
@@ -117,14 +149,17 @@ export const METRICS: MetricConfig[] = [
     colorFn: (f, ctx) => {
       const v = supportOf(f, ctx, ctx.year);
       if (v === null) return INK.noData;
-      return sequential(v / 0.6);
+      return sequential(within(v, rangeOf(ctx, (o) => supportOf(o, ctx, ctx.year))));
     },
-    legend: () => [
-      { c: SEQ_LEGEND[0], l: "Lower" },
-      { c: SEQ_LEGEND[1], l: "" },
-      { c: SEQ_LEGEND[2], l: "" },
-      { c: SEQ_LEGEND[3], l: "Higher" },
-    ],
+    legend: (ctx) => {
+      const r = rangeOf(ctx, (f) => supportOf(f, ctx, ctx.year));
+      return [
+        { c: SEQ_LEGEND[0], l: r ? fmtPct(r.min) : "Lower" },
+        { c: SEQ_LEGEND[1], l: "" },
+        { c: SEQ_LEGEND[2], l: "" },
+        { c: SEQ_LEGEND[3], l: r ? fmtPct(r.max) : "Higher" },
+      ];
+    },
     availableFor: (ctx) => {
       const tw = ctx.data.meta.townwide[ctx.year];
       if (ctx.mode !== "all")
@@ -227,19 +262,17 @@ export const METRICS: MetricConfig[] = [
     colorFn: (f, ctx) => {
       const y = f.properties.years[ctx.year];
       if (!y?.ballotsCast) return INK.noData;
-      const max = Math.max(
-        ...ctx.data.features.map(
-          (o) => o.properties.years[ctx.year]?.ballotsCast ?? 0,
-        ),
-      );
-      return sequential(max > 0 ? y.ballotsCast / max : 0);
+      return sequential(within(y.ballotsCast, rangeOf(ctx, ballotsOf(ctx))));
     },
-    legend: () => [
-      { c: SEQ_LEGEND[0], l: "Fewer ballots" },
-      { c: SEQ_LEGEND[1], l: "" },
-      { c: SEQ_LEGEND[2], l: "" },
-      { c: SEQ_LEGEND[3], l: "More" },
-    ],
+    legend: (ctx) => {
+      const r = rangeOf(ctx, ballotsOf(ctx));
+      return [
+        { c: SEQ_LEGEND[0], l: r ? `${r.min.toLocaleString()} ballots` : "Fewer ballots" },
+        { c: SEQ_LEGEND[1], l: "" },
+        { c: SEQ_LEGEND[2], l: "" },
+        { c: SEQ_LEGEND[3], l: r ? r.max.toLocaleString() : "More" },
+      ];
+    },
     availableFor: (ctx) =>
       ctx.data.meta.townwide[ctx.year]?.ballotsCast
         ? null

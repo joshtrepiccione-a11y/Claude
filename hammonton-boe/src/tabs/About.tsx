@@ -80,6 +80,33 @@ export function About({ data, focus }: { data: BoeData; focus: string }) {
         </ul>
       </Card>
 
+      <Card title="Where the two county publications disagree">
+        <div className="text-sm text-slate-700 space-y-3">
+          <p>
+            Atlantic County published 2023 twice: as a results website, and as a
+            per-municipality workbook. They agree on every district figure and
+            on every vote-mode total. They differ by three votes in one place,
+            and this app says which side it is on rather than quietly picking
+            one.
+          </p>
+          <p>
+            The workbook carries a separate <strong>“Handcount - VBM”</strong>{" "}
+            line — one vote each for Kelli Fallon, Bob Lolio and Shawn K.
+            McCloud — that its Grand Total includes and the website's town-wide
+            figures exclude. This app uses the website basis, because that is
+            the basis the district results and the county's published field
+            mode totals both reconcile against; adopting the other would leave
+            three votes with no district and no mode. So three candidates read
+            one vote lower here than in the workbook's Grand Total column.
+          </p>
+          <p className="text-slate-600">
+            Nothing else moves: the ranking, the seats and{" "}
+            <strong className="text-focus-deep">{focus}</strong>'s placement are
+            identical under either basis.
+          </p>
+        </div>
+      </Card>
+
       <Card title="What the county reported each year">
         <p className="text-sm text-slate-700 mb-3">
           The two elections were not published the same way, which limits some

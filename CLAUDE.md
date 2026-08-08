@@ -31,6 +31,9 @@ Hammonton BOE data pipeline (run from the repository root, in this order):
 
 ```bash
 python3 scripts/ingest_clarity_detail.py detail.xml --contest "Local BOE- Hammonton" --merge
+python3 scripts/ingest_boe_workbook.py data/sources/<workbook>.xlsx \
+        --sheet Hammonton --contest "Members of the Local Board of Education" \
+        --year 2023 --merge                    # ballots cast; refuses to write unless 8 checks pass
 python3 scripts/validate_hammonton_csv.py      # the repo's de facto test suite
 python3 scripts/build_hammonton_boe.py         # refuses to write if data does not reconcile
 ```
@@ -60,6 +63,12 @@ field totals (`*_field_modes.csv`).
 something, the data and the UI say so — `"—"`, a disabled control with a
 reason, or an `Unavailable` panel — rather than rendering 0. Ties are reported
 as ties, never resolved by candidate name.
+
+**When two county publications disagree, say so.** The 2023 website figures and
+the 2023 workbook differ by three votes (the workbook's `Handcount - VBM` line).
+The repo picks the basis everything else reconciles against, records the
+difference in the affected rows' `source` column, and states it on the About
+tab. Silently adopting either side is the failure mode to avoid.
 
 ## Branch conventions
 

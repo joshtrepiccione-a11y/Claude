@@ -364,8 +364,10 @@ def main():
         "type": "FeatureCollection",
         "meta": {
             "title": "Hammonton Board of Education — certified precinct results",
-            "source": ("Atlantic County certified by-district results "
-                       "(Clarity `detail.xml` export)"),
+            "source": ("Atlantic County certified by-district results — 2021 "
+                       "from the Clarity `detail.xml` export; 2023 from the "
+                       "county's published district results, with ballots cast "
+                       "from its “Condensed - Website” workbook"),
             "municipality": MUNICIPALITY,
             "years": [str(y) for y in years],
             "focusCandidateDefault": focus,
