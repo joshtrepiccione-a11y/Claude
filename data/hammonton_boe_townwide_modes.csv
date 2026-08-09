@@ -1,0 +1,14 @@
+year,candidate,votes_election_day,votes_early,votes_vbm,votes_provisional,source
+2021,Erica Polito,1206,272,330,32,Clarity detail.xml reporting units (Dist 01-07 = Election Day; Mail-in / EV / Provisional buckets)
+2021,Kelly Donio,1400,308,373,28,Clarity detail.xml reporting units (Dist 01-07 = Election Day; Mail-in / EV / Provisional buckets)
+2021,Luke Coia,1363,240,243,37,Clarity detail.xml reporting units (Dist 01-07 = Election Day; Mail-in / EV / Provisional buckets)
+2021,Mickey Pullia,1129,175,293,25,Clarity detail.xml reporting units (Dist 01-07 = Election Day; Mail-in / EV / Provisional buckets)
+2021,Personal Choice,12,6,8,0,Clarity detail.xml reporting units (Dist 01-07 = Election Day; Mail-in / EV / Provisional buckets)
+2021,Sean Grasso,982,180,213,20,Clarity detail.xml reporting units (Dist 01-07 = Election Day; Mail-in / EV / Provisional buckets)
+2021,Thomas Attanasi,1351,261,316,37,Clarity detail.xml reporting units (Dist 01-07 = Election Day; Mail-in / EV / Provisional buckets)
+2023,Bob Lolio,958,191,257,11,"Atlantic County certified results, town-wide mode breakdown; confirmed by the county's ""Condensed - Website"" workbook (Hammonton sheet)"
+2023,Kelli Fallon,1433,282,379,14,"Atlantic County certified results, town-wide mode breakdown; confirmed by the county's ""Condensed - Website"" workbook (Hammonton sheet)"
+2023,Mickey Pullia,1309,181,264,20,"Atlantic County certified results, town-wide mode breakdown; confirmed by the county's ""Condensed - Website"" workbook (Hammonton sheet)"
+2023,Raymond Scipione,1350,223,308,17,"Atlantic County certified results, town-wide mode breakdown; confirmed by the county's ""Condensed - Website"" workbook (Hammonton sheet)"
+2023,Shawn K. McCloud,1021,222,328,21,"derived as the published field mode totals minus the other five choices; since confirmed cell-for-cell by the county's ""Condensed - Website"" workbook (Hammonton sheet)"
+2023,WRITE-IN,22,12,8,0,"Atlantic County certified results, town-wide mode breakdown"

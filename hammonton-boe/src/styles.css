@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Most styling is Tailwind utilities in components. */
+
+/* min-height, not height: this page is embedded in a frame that sizes itself
+   to the content, and a hard 100% clamps the document to that frame's initial
+   viewport. */
+html, body, #root { min-height: 100%; }
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+}
+
+/* Leaflet z-index fix vs. Tailwind sticky elements. */
+.leaflet-container { z-index: 0; background: #eef2f7; }
+.leaflet-pane, .leaflet-top, .leaflet-bottom { z-index: 1; }
+
+/* Subtle scrollbars in panels. */
+.thin-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.thin-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.thin-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* Focus ring polish for keyboard users — the focus candidate's violet. */
+:focus-visible { outline: 2px solid #4a3aa7; outline-offset: 2px; border-radius: 4px; }
+
+/* Columns of figures align; standalone numbers keep proportional figures. */
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* Data tables: breathing room between columns, flush at the edges. */
+.data-table th,
+.data-table td { padding-left: 0.5rem; padding-right: 0.5rem; }
+.data-table th:first-child,
+.data-table td:first-child { padding-left: 0; }
+.data-table th:last-child,
+.data-table td:last-child { padding-right: 0; }
+
+/* Permanent district labels on the map. Compact, and never swallowing a tap
+   meant for the polygon underneath. */
+.leaflet-tooltip.precinct-label {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 4px;
+  box-shadow: none;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 4px;
+  pointer-events: none;
+}
+.leaflet-tooltip.precinct-label::before { display: none; }
+
+/* Larger tap targets on touch devices (mobile-first). */
+@media (max-width: 767px) {
+  button, [role="tab"], select, a { min-height: 44px; }
+}
+.leaflet-container { touch-action: pan-x pan-y; }
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+}
