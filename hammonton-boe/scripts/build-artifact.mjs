@@ -19,7 +19,8 @@ import { fileURLToPath } from "node:url";
 
 const APP = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = join(APP, "dist");
-const out = resolve(process.argv[2] ?? join(APP, "hammonton-boe-preview.html"));
+const args = process.argv.slice(2).filter((a) => !a.startsWith("--"));
+const out = resolve(args[0] ?? join(APP, "hammonton-boe-preview.html"));
 
 const one = (dir, ext) => {
   const hits = readdirSync(dir).filter((f) => f.endsWith(ext));
@@ -45,7 +46,21 @@ if (!title) throw new Error("no <title> in dist/index.html");
 // </script> inside embedded JSON would close the tag early.
 const safe = geojson.replace(/<\//g, "<\\/");
 
-const html = `<meta charset="utf-8">
+// The Artifact host wraps the file in its own <!doctype html><head>…<body>, so
+// a bare fragment is correct there. Served directly from any other host there
+// is no wrapper, and a document with no doctype renders in quirks mode --
+// hence --standalone, which emits a complete document. The banner differs too:
+// only the Artifact sandbox blocks the basemap.
+const standalone = process.argv.includes("--standalone");
+const note = standalone
+  ? ""
+  : `<div class="preview-note">
+  Static preview of the built app. Street basemap tiles are blocked by the preview sandbox, so districts draw on a plain ground &mdash;
+  <strong>every figure, control, map fill and export below is live and identical to the deployed build.</strong>
+</div>
+`;
+
+const head = `<meta charset="utf-8">
 <title>${title}</title>
 <style>
 ${css}
@@ -53,12 +68,24 @@ ${css}
 .preview-note{background:#0e1020;color:#ccd0e4;font:400 12px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   padding:8px 16px;text-align:center;border-bottom:1px solid #252a45}
 .preview-note strong{color:#fff;font-weight:600}
-</style>
-<div class="preview-note">
-  Static preview of the built app. Street basemap tiles are blocked by the preview sandbox, so districts draw on a plain ground &mdash;
-  <strong>every figure, control, map fill and export below is live and identical to the deployed build.</strong>
-</div>
-<div id="root"></div>
+</style>`;
+
+const body = `${note}<div id="root"></div>`;
+
+const html = standalone
+  ? `<!doctype html>
+<html lang="en">
+<head>
+${head.replace(
+  '<meta charset="utf-8">',
+  '<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">',
+)}
+</head>
+<body>
+${body}`
+  : `${head}
+${body}`;
+const tail = `
 <script>
 window.__BOE_DATA__ = ${safe};
 const _fetch = window.fetch ? window.fetch.bind(window) : null;
@@ -77,6 +104,7 @@ ${js}
 </script>
 `;
 
-writeFileSync(out, html);
-const kb = (Buffer.byteLength(html) / 1024).toFixed(0);
-console.log(`wrote ${out} (${kb} KB)`);
+const doc = html + tail + (standalone ? "</body>\n</html>\n" : "");
+writeFileSync(out, doc);
+const kb = (Buffer.byteLength(doc) / 1024).toFixed(0);
+console.log(`wrote ${out} (${kb} KB)${standalone ? " [standalone document]" : ""}`);
