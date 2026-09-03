@@ -1,0 +1,58 @@
+name: Post 186 site checks
+
+# The Post 186 site (post186/) deploys from its own Vercel project rather than
+# from this workflow. This runs the checks a contributor would run locally, so a
+# change that breaks the build is caught here instead of in a deploy.
+
+on:
+  push:
+    branches:
+      - claude/initial-setup-SjVdw   # repo default branch
+    paths:
+      - 'post186/**'
+      - '.github/workflows/post186.yml'
+  pull_request:
+    paths:
+      - 'post186/**'
+      - '.github/workflows/post186.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch supersedes an in-flight run.
+concurrency:
+  group: post186-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: post186
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: "post186/package-lock.json"
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test
+
+      # No database is needed: every page that reads content is rendered per
+      # request, so nothing is queried at build time.
+      - name: Build
+        run: npm run build
