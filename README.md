@@ -1,7 +1,16 @@
 # NJ Legislative District 8
 
-This repo contains the LD8 election map / scenario tools, plus a County
-Clerk adaptation:
+This repo holds two unrelated projects, each with its own Vercel deployment:
+
+- **LD8 election map / scenario tools** at the repository root (below).
+- **[`post186/`](post186/)** — the Frank M. Calletta American Legion Post 186
+  website (Next.js + Postgres). It deploys as a separate Vercel project whose
+  **Root Directory** is set to `post186`; see
+  [`post186/DEPLOY.md`](post186/DEPLOY.md).
+
+## LD8 election map
+
+The LD8 election map / scenario tools, plus a County Clerk adaptation:
 
 | Version | Path | Stack | Purpose |
 |---------|------|-------|---------|
