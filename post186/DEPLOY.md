@@ -36,6 +36,40 @@ the deployment depends on which branch you work on, only on which branch you poi
 4. Do not deploy yet. Add the database and the environment variables first, so the first deploy
    comes up complete.
 
+This is a **second, separate** Vercel project on the same repository. The LD8 map keeps its own
+project, its own domains, and its own environment variables; nothing is shared between them except
+the Git history. The Root Directory setting is what tells each project which half of the repository
+it owns.
+
+### Stop the two projects rebuilding each other
+
+Both projects watch the same repository, so out of the box *every* push builds *both* of them — a
+change to a map component would redeploy the Post 186 site, and a fixed typo in a news template
+would redeploy the map. The deploys are harmless (each still builds only its own Root Directory)
+but they waste build minutes and put a confusing second preview on every pull request.
+
+Fix it on **both** projects, under **Settings, Git, Ignored Build Step**. Choose the option to run a
+command, and use:
+
+```
+git diff --quiet HEAD^ HEAD -- .
+```
+
+The command runs from the project's Root Directory. It exits 0 when that directory is unchanged,
+which tells Vercel to skip the build, and exits 1 when there are changes, which lets the build
+proceed. Set it on the LD8 project too, or that one will still rebuild on every Post 186 change.
+
+Newer Vercel dashboards may offer this as a checkbox worded roughly as "only build if there are
+changes in the Root Directory". Either form does the same job.
+
+### If you would rather they were fully separate
+
+Two projects on one repository is the normal arrangement and it is what this guide assumes. If you
+want genuine separation — separate history, separate issues, separate access — move `post186/` into
+a repository of its own and point a Vercel project at that instead. Nothing in the code depends on
+living in this repository; the Root Directory setting would simply become the repository root, and
+the Ignored Build Step above would no longer be needed.
+
 ## 3. Attach a Postgres database
 
 1. Open the project's **Storage** tab and create a **Postgres** database (Vercel's managed Postgres,
