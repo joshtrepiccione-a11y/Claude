@@ -1,0 +1,197 @@
+---
+import { forms } from "@wix/forms";
+import { CONTACT_FORM_ID } from "../utils/constants";
+
+interface Props {
+  topic?: string | null;
+}
+const { topic } = Astro.props;
+
+type FieldType = "text" | "email" | "tel" | "number" | "date" | "textarea" | "select" | "radio" | "checkbox" | "checkbox-group";
+type RenderableField = {
+  id: string;
+  type: FieldType;
+  label: string;
+  required: boolean;
+  half: boolean;
+  placeholder?: string;
+  options?: Array<{ value: string; label: string }>;
+};
+
+// Rich-text labels (e.g. checkbox labels) come back as Ricos nodes; flatten them to plain text.
+function plainText(label: any): string {
+  if (!label) return "";
+  if (typeof label === "string") return label;
+  const walk = (nodes: any[] = []): string =>
+    nodes.map((n) => (n.textData?.text ?? "") + walk(n.nodes)).join("");
+  return walk(label.nodes).trim();
+}
+
+function toOptions(raw: any): RenderableField["options"] {
+  return raw?.map((o: any) => ({ value: o.value || o.label || "", label: o.label || o.value || "" }));
+}
+
+// Map a Wix Forms input field definition to what we render.
+function resolveField(field: any, width: number): RenderableField {
+  const io = field.inputOptions ?? {};
+  const so = io.stringOptions ?? {};
+  const id = io.target || field._id;
+  const required = io.required ?? false;
+  const half = width <= 6;
+
+  const kinds: Array<[any, FieldType]> = [
+    [so.dropdownOptions, "select"],
+    [so.radioGroupOptions, "radio"],
+    [so.checkboxGroupOptions ?? io.arrayOptions?.checkboxGroupOptions, "checkbox-group"],
+    [io.numberOptions?.numberInputOptions, "number"],
+    [io.booleanOptions?.checkboxOptions, "checkbox"],
+    [so.phoneInputOptions, "tel"],
+    [so.dateInputOptions, "date"],
+  ];
+  for (const [opts, type] of kinds) {
+    if (opts) {
+      return {
+        id,
+        type,
+        label: plainText(opts.label) || id,
+        required,
+        half,
+        placeholder: opts.placeholder,
+        options: toOptions(opts.options),
+      };
+    }
+  }
+  const type: FieldType =
+    field.identifier === "TEXT_AREA" ? "textarea" : so.validation?.format === "EMAIL" ? "email" : "text";
+  return {
+    id,
+    type,
+    label: plainText(so.textInputOptions?.label) || id,
+    required,
+    half,
+    placeholder: so.textInputOptions?.placeholder,
+  };
+}
+
+let fields: RenderableField[] = [];
+let loadError = false;
+try {
+  const wixForm: any = await forms.getForm(CONTACT_FORM_ID);
+  const inputs = new Map<string, any>(
+    (wixForm.formFields ?? [])
+      .filter((f: any) => f.fieldType === "INPUT" && !f.hidden && f._id)
+      .map((f: any) => [f._id, f]),
+  );
+  const layoutItems = (wixForm.steps ?? []).flatMap((s: any) => s.layout?.large?.items ?? []);
+  if (layoutItems.length) {
+    fields = layoutItems
+      .slice()
+      .sort((a: any, b: any) => a.row - b.row || a.column - b.column)
+      .filter((item: any) => inputs.has(item.fieldId))
+      .map((item: any) => resolveField(inputs.get(item.fieldId), item.width ?? 12));
+  } else {
+    fields = [...inputs.values()].map((f) => resolveField(f, 12));
+  }
+} catch (error) {
+  console.error("Failed to load contact form", error);
+  loadError = true;
+}
+---
+
+{loadError ? (
+  <div class="notice notice--error">Our contact form is temporarily unavailable. Please visit or call the post.</div>
+) : (
+  <form id="contact-form" novalidate>
+    <div class="form-grid">
+      {fields.map((f) => (
+        <div class:list={["form-field", f.half && "form-field--half"]}>
+          {f.type === "checkbox" ? (
+            <label class="choice">
+              <input type="checkbox" name={f.id} required={f.required} />
+              <span>{f.label}{f.required && <span class="req"> *</span>}</span>
+            </label>
+          ) : f.type === "radio" || f.type === "checkbox-group" ? (
+            <fieldset style="border:0;padding:0;margin:0">
+              <legend class="form-label">{f.label}{f.required && <span class="req"> *</span>}</legend>
+              {f.options?.map((o) => (
+                <label class="choice">
+                  <input
+                    type={f.type === "radio" ? "radio" : "checkbox"}
+                    name={f.id}
+                    value={o.value}
+                    required={f.type === "radio" && f.required}
+                    data-multi={f.type === "checkbox-group" ? "true" : undefined}
+                  />
+                  <span>{o.label}</span>
+                </label>
+              ))}
+            </fieldset>
+          ) : (
+            <>
+              <label class="form-label" for={f.id}>{f.label}{f.required && <span class="req"> *</span>}</label>
+              {f.type === "textarea" ? (
+                <textarea class="form-textarea" id={f.id} name={f.id} required={f.required} placeholder={f.placeholder} />
+              ) : f.type === "select" ? (
+                <select class="form-select" id={f.id} name={f.id} required={f.required}>
+                  <option value="">Select an option</option>
+                  {f.options?.map((o) => <option value={o.value} selected={topic === o.value}>{o.label}</option>)}
+                </select>
+              ) : (
+                <input class="form-input" id={f.id} name={f.id} type={f.type} required={f.required} placeholder={f.placeholder} />
+              )}
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+    <div id="contact-error" class="notice notice--error" style="margin-top:16px" role="alert" hidden></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:24px;flex-wrap:wrap">
+      <span class="muted" style="font-size:0.85rem"><span class="req">*</span> Required</span>
+      <button type="submit" class="btn btn--primary">Send message</button>
+    </div>
+  </form>
+)}
+
+<script>
+  import { submitContactForm, type FormValues } from "../utils/form-service";
+
+  const form = document.getElementById("contact-form") as HTMLFormElement | null;
+  if (form) {
+    const errorBox = document.getElementById("contact-error")!;
+    const button = form.querySelector("button[type=submit]") as HTMLButtonElement;
+
+    const collect = (): FormValues => {
+      const data = new FormData(form);
+      const values: FormValues = {};
+      for (const name of new Set(data.keys())) values[name] = String(data.get(name) ?? "");
+      for (const el of form.querySelectorAll<HTMLInputElement>('input[type="number"]')) values[el.name] = Number(el.value);
+      for (const el of form.querySelectorAll<HTMLInputElement>('input[type="checkbox"][data-multi]'))
+        values[el.name] = data.getAll(el.name).map(String);
+      for (const el of form.querySelectorAll<HTMLInputElement>('input[type="checkbox"]:not([data-multi])'))
+        values[el.name] = el.checked;
+      // Drop empty optional strings so Wix validation doesn't reject them.
+      for (const [k, v] of Object.entries(values)) if (v === "") delete values[k];
+      return values;
+    };
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorBox.hidden = true;
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+      button.disabled = true;
+      button.textContent = "Sending…";
+      const result = await submitContactForm(collect());
+      if (result.success) {
+        window.location.href = "/contact/thank-you";
+        return;
+      }
+      errorBox.textContent = result.error ?? "Please check your details and try again.";
+      errorBox.hidden = false;
+      button.disabled = false;
+      button.textContent = "Send message";
+    });
+  }
+</script>

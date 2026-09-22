@@ -1,0 +1,382 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { getServices, type ServiceSummary } from "../utils/booking-service";
+
+let services: ServiceSummary[] = [];
+let servicesError = false;
+try {
+  services = await getServices();
+} catch (error) {
+  console.error("Error loading services:", error);
+  servicesError = true;
+}
+
+const requested = Astro.url.searchParams.get("service");
+const initial = services.find((s) => s.id === requested) ?? services[0];
+const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function meta(s: ServiceSummary) {
+  return [s.durationMinutes ? `${s.durationMinutes} min` : null, s.price].filter(Boolean).join(" · ");
+}
+
+// Only the fields the client script needs.
+const clientServices = services.map(({ id, name, type, requiresPayment }) => ({ id, name, type, requiresPayment }));
+---
+
+<Layout title="Book a Service" description="Schedule a veterans support appointment, counseling program, or community session with American Legion Post 186.">
+  <section class="page-hero">
+    <div class="container">
+      <p class="eyebrow">Book online</p>
+      <h1>Schedule time with Post 186</h1>
+      <p>Pick a service, choose a date and time that works for you, and confirm. It only takes a minute.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      {servicesError ? (
+        <div class="notice notice--error">We couldn't load our services. Please refresh the page, or <a href="/contact">contact us</a> to schedule.</div>
+      ) : services.length === 0 ? (
+        <div class="empty">No services are open for online booking yet. <a href="/contact">Contact us</a> and we'll get you scheduled.</div>
+      ) : (
+        <>
+          <div class="panel" style="margin-bottom:20px">
+            <h2 class="step-title"><span class="step-num">1</span>Choose a service</h2>
+            <div class="service-options" role="group" aria-label="Services">
+              {services.map((s) => (
+                <button type="button" class="service-option" data-service-id={s.id} aria-pressed={s.id === initial?.id ? "true" : "false"}>
+                  <strong>{s.name}</strong>
+                  <span>{s.tagLine || meta(s)}</span>
+                  {s.tagLine && meta(s) && <span style="display:block;margin-top:4px">{meta(s)}</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div id="course-panel" class="panel" hidden>
+            <h2 class="step-title"><span class="step-num">2</span>Enroll in the program</h2>
+            <p id="course-text" class="muted">
+              This service runs as a multi-session program. Continue to our secure booking page to see the schedule and enroll.
+            </p>
+            <button id="course-button" type="button" class="btn btn--primary">Continue to enrollment</button>
+            <div id="course-error" class="notice notice--error" style="margin-top:12px" role="alert" hidden></div>
+          </div>
+
+          <div id="slot-flow" class="booking-layout">
+            <div class="panel">
+              <h2 class="step-title"><span class="step-num">2</span>Pick a date</h2>
+              <div class="calendar-head">
+                <button type="button" id="prev-month" aria-label="Previous month">‹</button>
+                <strong id="month-label"></strong>
+                <button type="button" id="next-month" aria-label="Next month">›</button>
+              </div>
+              <div class="calendar" id="calendar">
+                {days.map((d) => <div class="calendar__dow" aria-hidden="true">{d}</div>)}
+              </div>
+            </div>
+
+            <div class="panel">
+              <h2 class="step-title"><span class="step-num">3</span>Pick a time</h2>
+              <p id="slots-hint" class="muted">Select a date to see available times.</p>
+              <div id="slots-loading" class="spinner" role="status" aria-label="Loading times" hidden></div>
+              <div id="slots-error" class="notice notice--error" role="alert" hidden>We couldn't load available times. Please try again.</div>
+              <p id="slots-none" class="muted" hidden>No openings on this date. Try another day.</p>
+              <div id="slots" class="slots"></div>
+              <p class="muted" style="font-size:0.85rem;margin-top:12px">Times shown in your local time zone.</p>
+            </div>
+
+            <div class="panel">
+              <h2 class="step-title"><span class="step-num">4</span>Confirm</h2>
+              <p id="confirm-hint" class="muted">Choose a date and time to continue.</p>
+              <div id="confirm-panel" hidden>
+                <dl class="summary">
+                  <div><dt>Service: </dt><dd id="sum-service"></dd></div>
+                  <div><dt>Date: </dt><dd id="sum-date"></dd></div>
+                  <div><dt>Time: </dt><dd id="sum-time"></dd></div>
+                </dl>
+
+                <form id="free-form" novalidate hidden>
+                  <div class="form-grid">
+                    <div class="form-field">
+                      <label class="form-label" for="b-name">Full name <span class="req">*</span></label>
+                      <input class="form-input" id="b-name" name="name" autocomplete="name" required />
+                    </div>
+                    <div class="form-field">
+                      <label class="form-label" for="b-email">Email <span class="req">*</span></label>
+                      <input class="form-input" id="b-email" name="email" type="email" autocomplete="email" required />
+                    </div>
+                    <div class="form-field">
+                      <label class="form-label" for="b-phone">Phone <span class="req">*</span></label>
+                      <input class="form-input" id="b-phone" name="phone" type="tel" autocomplete="tel" required />
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn--primary btn--block" style="margin-top:18px">Confirm booking</button>
+                </form>
+
+                <div id="paid-panel" hidden>
+                  <p class="muted" style="font-size:0.93rem">You'll enter your details and complete payment on our secure Wix checkout.</p>
+                  <button id="checkout-button" type="button" class="btn btn--primary btn--block">Continue to checkout</button>
+                </div>
+                <div id="confirm-error" class="notice notice--error" style="margin-top:12px" role="alert" hidden></div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  </section>
+
+  <script type="application/json" id="services-data" set:html={JSON.stringify({ services: clientServices, initial: initial?.id ?? null })} />
+</Layout>
+
+<script>
+  import {
+    getAvailableSlots,
+    createFreeBooking,
+    getCheckoutUrl,
+    getBookPageUrl,
+    type TimeSlot,
+  } from "../utils/booking-service";
+
+  type ClientService = { id: string; name: string; type: string; requiresPayment: boolean };
+
+  const dataEl = document.getElementById("services-data");
+  const calendarEl = document.getElementById("calendar");
+
+  if (dataEl && calendarEl) {
+    const { services, initial } = JSON.parse(dataEl.textContent || "{}") as {
+      services: ClientService[];
+      initial: string | null;
+    };
+
+    const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+    const slotFlow = $("slot-flow");
+    const coursePanel = $("course-panel");
+    const slotsEl = $("slots");
+    const confirmPanel = $("confirm-panel");
+    const freeForm = $<HTMLFormElement>("free-form");
+    const paidPanel = $("paid-panel");
+    const confirmError = $("confirm-error");
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let viewMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    let service: ClientService | undefined = services.find((s) => s.id === initial) ?? services[0];
+    let selectedDate: Date | null = null;
+    let selectedSlot: TimeSlot | null = null;
+    let requestId = 0;
+
+    const longDate = (d: Date) =>
+      new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(d);
+
+    function showError(el: HTMLElement, msg: string) {
+      el.textContent = msg;
+      el.hidden = false;
+    }
+
+    /* Service selection */
+    document.querySelectorAll<HTMLButtonElement>(".service-option").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const next = services.find((s) => s.id === btn.dataset.serviceId);
+        if (!next || next.id === service?.id) return;
+        document.querySelectorAll(".service-option").forEach((b) => b.setAttribute("aria-pressed", "false"));
+        btn.setAttribute("aria-pressed", "true");
+        service = next;
+        const url = new URL(window.location.href);
+        url.searchParams.set("service", next.id);
+        history.replaceState(null, "", url);
+        applyService();
+      });
+    });
+
+    function applyService() {
+      const isCourse = service?.type === "COURSE";
+      coursePanel.hidden = !isCourse;
+      slotFlow.hidden = isCourse;
+      selectedSlot = null;
+      renderConfirm();
+      if (!isCourse && selectedDate) loadSlots();
+    }
+
+    /* Calendar */
+    function renderCalendar() {
+      calendarEl!.querySelectorAll(".calendar__day, .calendar__pad").forEach((n) => n.remove());
+      $("month-label").textContent = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(viewMonth);
+      ($("prev-month") as HTMLButtonElement).disabled =
+        viewMonth.getFullYear() === today.getFullYear() && viewMonth.getMonth() === today.getMonth();
+
+      const first = viewMonth.getDay();
+      const daysInMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0).getDate();
+      for (let i = 0; i < first; i++) {
+        const pad = document.createElement("div");
+        pad.className = "calendar__pad";
+        calendarEl!.append(pad);
+      }
+      for (let d = 1; d <= daysInMonth; d++) {
+        const date = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), d);
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "calendar__day";
+        btn.textContent = String(d);
+        btn.setAttribute("aria-label", longDate(date));
+        if (date < today) btn.disabled = true;
+        if (date.getTime() === today.getTime()) btn.classList.add("is-today");
+        if (selectedDate && date.getTime() === selectedDate.getTime()) {
+          btn.classList.add("is-selected");
+          btn.setAttribute("aria-pressed", "true");
+        }
+        btn.addEventListener("click", () => {
+          selectedDate = date;
+          selectedSlot = null;
+          renderCalendar();
+          renderConfirm();
+          loadSlots();
+        });
+        calendarEl!.append(btn);
+      }
+    }
+
+    $("prev-month").addEventListener("click", () => {
+      viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1);
+      renderCalendar();
+    });
+    $("next-month").addEventListener("click", () => {
+      viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1);
+      renderCalendar();
+    });
+
+    /* Time slots */
+    async function loadSlots() {
+      if (!selectedDate || !service) return;
+      const current = ++requestId;
+      $("slots-hint").hidden = true;
+      $("slots-error").hidden = true;
+      $("slots-none").hidden = true;
+      $("slots-loading").hidden = false;
+      slotsEl.replaceChildren();
+
+      try {
+        const slots = await getAvailableSlots(selectedDate, service.id);
+        if (current !== requestId) return;
+        $("slots-none").hidden = slots.length > 0;
+        slotsEl.replaceChildren(
+          ...slots.map((slot) => {
+            const b = document.createElement("button");
+            b.type = "button";
+            b.className = "slot";
+            b.textContent = slot.display;
+            b.disabled = !slot.available;
+            b.addEventListener("click", () => {
+              slotsEl.querySelectorAll(".slot").forEach((n) => n.classList.remove("is-selected"));
+              b.classList.add("is-selected");
+              selectedSlot = slot;
+              renderConfirm();
+              if (window.innerWidth < 980) confirmPanel.scrollIntoView({ behavior: "smooth", block: "center" });
+            });
+            return b;
+          }),
+        );
+      } catch (error) {
+        if (current !== requestId) return;
+        console.error("Error fetching time slots:", error);
+        $("slots-error").hidden = false;
+      } finally {
+        if (current === requestId) $("slots-loading").hidden = true;
+      }
+    }
+
+    /* Confirmation */
+    function renderConfirm() {
+      const ready = Boolean(service && selectedDate && selectedSlot);
+      $("confirm-hint").hidden = ready;
+      confirmPanel.hidden = !ready;
+      confirmError.hidden = true;
+      if (!ready) return;
+      $("sum-service").textContent = service!.name;
+      $("sum-date").textContent = longDate(selectedDate!);
+      $("sum-time").textContent = selectedSlot!.display;
+      freeForm.hidden = service!.requiresPayment;
+      paidPanel.hidden = !service!.requiresPayment;
+    }
+
+    freeForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!freeForm.checkValidity()) {
+        freeForm.reportValidity();
+        return;
+      }
+      const btn = freeForm.querySelector("button") as HTMLButtonElement;
+      btn.disabled = true;
+      btn.textContent = "Confirming…";
+      const data = new FormData(freeForm);
+      const details = {
+        name: String(data.get("name")),
+        email: String(data.get("email")),
+        phone: String(data.get("phone")),
+      };
+      try {
+        await createFreeBooking(details, selectedSlot!);
+        try {
+          sessionStorage.setItem(
+            "post186-booking",
+            JSON.stringify({
+              ...details,
+              serviceName: service!.name,
+              displayDate: longDate(selectedDate!),
+              displayTime: selectedSlot!.display,
+            }),
+          );
+        } catch {}
+        window.location.href = "/booking-confirmation";
+      } catch (error) {
+        console.error("Error creating booking:", error);
+        showError(confirmError, "We couldn't complete your booking. That time may have just been taken — please pick another.");
+        btn.disabled = false;
+        btn.textContent = "Confirm booking";
+      }
+    });
+
+    $("checkout-button").addEventListener("click", async () => {
+      const btn = $<HTMLButtonElement>("checkout-button");
+      btn.disabled = true;
+      btn.textContent = "Redirecting…";
+      try {
+        const url = await getCheckoutUrl(
+          selectedSlot!.entity,
+          window.location.href,
+          `${window.location.origin}/booking-confirmation`,
+        );
+        if (!url) throw new Error("No checkout URL returned");
+        window.location.href = url;
+      } catch (error) {
+        console.error("Error creating checkout session:", error);
+        showError(confirmError, "We couldn't open checkout. Please try again.");
+        btn.disabled = false;
+        btn.textContent = "Continue to checkout";
+      }
+    });
+
+    $("course-button").addEventListener("click", async () => {
+      const btn = $<HTMLButtonElement>("course-button");
+      btn.disabled = true;
+      btn.textContent = "Redirecting…";
+      try {
+        const url = await getBookPageUrl(window.location.href);
+        if (!url) throw new Error("No booking URL returned");
+        window.location.href = url;
+      } catch (error) {
+        console.error("Error opening booking page:", error);
+        showError($("course-error"), "We couldn't open enrollment. Please try again or contact the post.");
+        btn.disabled = false;
+        btn.textContent = "Continue to enrollment";
+      }
+    });
+
+    renderCalendar();
+    applyService();
+    // Start on today so visitors immediately see openings.
+    selectedDate = today;
+    renderCalendar();
+    if (service?.type !== "COURSE") loadSlots();
+  }
+</script>

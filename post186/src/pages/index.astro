@@ -1,0 +1,212 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Icon from "../components/Icon.astro";
+import EventCard from "../components/EventCard.astro";
+import ServiceCard from "../components/ServiceCard.astro";
+import { getUpcomingEvents, type EventSummary } from "../utils/events-service";
+import { getServices, type ServiceSummary } from "../utils/booking-service";
+import { ORG_NAME } from "../utils/constants";
+
+let events: EventSummary[] = [];
+let services: ServiceSummary[] = [];
+
+const [eventsResult, servicesResult] = await Promise.allSettled([getUpcomingEvents(3), getServices()]);
+if (eventsResult.status === "fulfilled") events = eventsResult.value;
+else console.error("Failed to load events", eventsResult.reason);
+if (servicesResult.status === "fulfilled") services = servicesResult.value;
+else console.error("Failed to load services", servicesResult.reason);
+
+const pillars = [
+  {
+    icon: "heart" as const,
+    title: "Veterans Affairs & Rehabilitation",
+    text: "Helping local veterans navigate VA benefits, claims, healthcare, and the transition back to civilian life.",
+  },
+  {
+    icon: "users" as const,
+    title: "Family & Children",
+    text: "Standing with military families through hardship, and investing in the next generation through youth programs.",
+  },
+  {
+    icon: "flag" as const,
+    title: "Americanism",
+    text: "Flag etiquette, color guard, school outreach, and honoring the fallen on Memorial Day and Veterans Day.",
+  },
+  {
+    icon: "hands" as const,
+    title: "Community Service",
+    text: "Neighbors helping neighbors — food drives, fundraisers, and gatherings that bring Jennings together.",
+  },
+];
+
+const involve = [
+  { title: "Become a member", text: "Continue your service alongside veterans who understand your journey.", topic: "Membership", cta: "Join the post" },
+  { title: "Volunteer", text: "Veterans and civilians alike are welcome to help with events, outreach, and drives.", topic: "Volunteering", cta: "Lend a hand" },
+  { title: "Support our mission", text: "Your gift funds direct assistance for veterans and families in our community.", topic: "Donations", cta: "Give today" },
+  { title: "Rent our hall", text: "Host a reunion, celebration, or meeting in our post home in Jennings.", topic: "Hall rental", cta: "Ask about rentals" },
+];
+---
+
+<Layout description={`${ORG_NAME} supports veterans and their families in Jennings, Missouri through assistance, counseling, community events, and service.`}>
+  <section class="hero">
+    <div class="hero__stars" aria-hidden="true"></div>
+    <div class="container hero__inner">
+      <div>
+        <p class="eyebrow">Frank M. Calletta · American Legion Post 186</p>
+        <h1>Serving those who served — and the community they call home.</h1>
+        <p class="hero__lead">
+          We are veterans helping veterans. From benefits guidance and counseling to family gatherings and community
+          events, Post 186 is here for every veteran and military family in Jennings and North County.
+        </p>
+        <div class="hero__actions">
+          <a href="/contact?topic=Veteran%20assistance" class="btn btn--primary">Request assistance</a>
+          <a href="/events" class="btn btn--outline-light">See upcoming events</a>
+        </div>
+      </div>
+
+      <aside class="hero__card" aria-labelledby="hero-help">
+        <h2 id="hero-help">How we can help</h2>
+        <ul>
+          <li><Icon name="shield" />Guidance on VA benefits, claims, and resources</li>
+          <li><Icon name="heart" />Confidential veteran counseling and support sessions</li>
+          <li><Icon name="users" />Family events that build lasting camaraderie</li>
+          <li><Icon name="hands" />Career and transition workshops</li>
+        </ul>
+        <a href="/book" class="btn btn--gold btn--block" style="margin-top:24px">Book a support session</a>
+      </aside>
+    </div>
+  </section>
+
+  <div class="container">
+    <div class="stats" role="list">
+      <div class="stat" role="listitem"><div class="stat__value">1919</div><div class="stat__label">The American Legion founded</div></div>
+      <div class="stat" role="listitem"><div class="stat__value">4</div><div class="stat__label">Pillars guide our service</div></div>
+      <div class="stat" role="listitem"><div class="stat__value">Local</div><div class="stat__label">Rooted in Jennings, MO</div></div>
+      <div class="stat" role="listitem"><div class="stat__value">All</div><div class="stat__label">Veterans &amp; families welcome</div></div>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="container split">
+      <div>
+        <p class="eyebrow">Our mission</p>
+        <h2>A place where no veteran stands alone.</h2>
+        <p>
+          Post 186 carries the name of Frank M. Calletta and the commitment of every member who has walked through our
+          doors. We exist to make sure the men and women who served — and the families who served beside them — have
+          a trusted place to turn.
+        </p>
+        <ul class="checklist">
+          <li>Personal help connecting to the benefits you have earned</li>
+          <li>Support through the transition from military to civilian life</li>
+          <li>Welcoming events for veterans, spouses, children, and caregivers</li>
+          <li>Active partnership with neighbors, schools, and local organizations</li>
+        </ul>
+        <a href="/about" class="btn btn--navy">Learn about Post 186</a>
+      </div>
+      <div class="panel" style="background:var(--navy);color:#d3dceb;border:none">
+        <p class="eyebrow" style="color:var(--gold)">Community first</p>
+        <h3 style="color:#fff;font-size:1.6rem">Veterans are our neighbors.</h3>
+        <p>
+          The welfare of veterans is inseparable from the health of the community around them. That is why our work
+          reaches beyond the post — into homes, schools, and gathering places across Jennings.
+        </p>
+        <p style="margin:0">
+          Whether you need help, want to help, or simply want to connect, our door is open.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--white">
+    <div class="container">
+      <div class="section-head section-head--center">
+        <p class="eyebrow">What we do</p>
+        <h2>Four pillars of service</h2>
+        <p>Every program at Post 186 is grounded in the founding pillars of The American Legion, put to work right here at home.</p>
+      </div>
+      <div class="grid grid--4">
+        {pillars.map((p) => (
+          <div class="pillar">
+            <div class="pillar__icon"><Icon name={p.icon} size={24} /></div>
+            <h3>{p.title}</h3>
+            <p>{p.text}</p>
+          </div>
+        ))}
+      </div>
+      <p class="center mt-lg"><a class="link-arrow" href="/programs">Explore all programs →</a></p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="section-head" style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;max-width:none">
+        <div style="max-width:640px">
+          <p class="eyebrow">Upcoming events</p>
+          <h2>Gather, remember, and connect</h2>
+          <p>Join fellow veterans, families, and neighbors at the post.</p>
+        </div>
+        <a href="/events" class="btn btn--outline">All events</a>
+      </div>
+      {events.length > 0 ? (
+        <div class="grid grid--3">{events.map((event) => <EventCard event={event} />)}</div>
+      ) : (
+        <div class="empty">New events are on the way. Check back soon or <a href="/contact">contact us</a> to stay informed.</div>
+      )}
+    </div>
+  </section>
+
+  <section class="section section--white">
+    <div class="container">
+      <div class="section-head section-head--center">
+        <p class="eyebrow">Support services</p>
+        <h2>Schedule time with our team</h2>
+        <p>Reserve a one-on-one support appointment, a counseling program, or a spot at a community session — online, in minutes.</p>
+      </div>
+      {services.length > 0 ? (
+        <div class="grid grid--3">{services.map((service) => <ServiceCard service={service} />)}</div>
+      ) : (
+        <div class="empty">Online booking will be available soon. <a href="/contact">Contact us</a> to schedule in the meantime.</div>
+      )}
+    </div>
+  </section>
+
+  <section class="section section--navy">
+    <div class="container">
+      <blockquote class="quote">
+        “To consecrate and sanctify our comradeship by our devotion to mutual helpfulness.”
+        <cite class="quote-cite">Preamble to the Constitution of The American Legion</cite>
+      </blockquote>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="section-head section-head--center">
+        <p class="eyebrow">Get involved</p>
+        <h2>There is a place for you here</h2>
+      </div>
+      <div class="grid grid--4">
+        {involve.map((item) => (
+          <div class="card">
+            <div class="card__body">
+              <h3>{item.title}</h3>
+              <p>{item.text}</p>
+              <div class="card__foot">
+                <a class="link-arrow" href={`/contact?topic=${encodeURIComponent(item.topic)}`}>{item.cta} →</a>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div class="cta-band mt-lg">
+        <div>
+          <h2>Need help now? Reach out today.</h2>
+          <p>Tell us what you need and a member of Post 186 will follow up personally.</p>
+        </div>
+        <a href="/contact?topic=Veteran%20assistance" class="btn btn--gold">Contact the post</a>
+      </div>
+    </div>
+  </section>
+</Layout>

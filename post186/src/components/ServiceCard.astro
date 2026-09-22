@@ -1,0 +1,35 @@
+---
+import Icon from "./Icon.astro";
+import { wixImageUrl } from "../utils/media";
+import type { ServiceSummary } from "../utils/booking-service";
+
+interface Props {
+  service: ServiceSummary;
+}
+const { service } = Astro.props;
+const img = wixImageUrl(service.image, 800, 450);
+const typeLabel: Record<string, string> = {
+  APPOINTMENT: "One-on-one",
+  CLASS: "Group session",
+  COURSE: "Multi-session program",
+};
+---
+
+<article class="card card--hover">
+  <div class="card__media">
+    {img && <img src={img} alt="" loading="lazy" width="800" height="450" />}
+  </div>
+  <div class="card__body">
+    <span class="pill pill--navy" style="align-self:flex-start;margin-bottom:10px">{typeLabel[service.type] ?? "Service"}</span>
+    <h3>{service.name}</h3>
+    {service.tagLine && <p style="font-weight:600;color:var(--navy);margin-bottom:6px">{service.tagLine}</p>}
+    {service.description && <p>{service.description}</p>}
+    <div class="card__foot">
+      <span class="card__meta" style="margin:0">
+        {service.durationMinutes && <span style="display:inline-flex;gap:6px;align-items:center"><Icon name="clock" size={15} />{service.durationMinutes} min</span>}
+        {service.price && <span>{service.price}</span>}
+      </span>
+      <a class="btn btn--navy btn--sm" href={`/book?service=${service.id}`}>Book now</a>
+    </div>
+  </div>
+</article>

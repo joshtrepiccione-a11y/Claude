@@ -1,0 +1,36 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import EventCard from "../../components/EventCard.astro";
+import { getUpcomingEvents, type EventSummary } from "../../utils/events-service";
+
+let events: EventSummary[] = [];
+let loadError = false;
+try {
+  events = await getUpcomingEvents();
+} catch (error) {
+  console.error("Failed to load events", error);
+  loadError = true;
+}
+---
+
+<Layout title="Events" description="Upcoming events at American Legion Post 186 — gatherings, workshops, fundraisers, and remembrance ceremonies in Jennings, MO.">
+  <section class="page-hero">
+    <div class="container">
+      <p class="eyebrow">Events</p>
+      <h1>Upcoming at Post 186</h1>
+      <p>Family gatherings, workshops, fundraisers, and ceremonies — open to veterans, families, and the community. RSVP or get tickets online.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      {loadError ? (
+        <div class="notice notice--error">We couldn't load events right now. Please refresh the page to try again.</div>
+      ) : events.length > 0 ? (
+        <div class="grid grid--3">{events.map((event) => <EventCard event={event} />)}</div>
+      ) : (
+        <div class="empty">No upcoming events are scheduled yet. <a href="/contact">Contact us</a> to hear about the next one.</div>
+      )}
+    </div>
+  </section>
+</Layout>

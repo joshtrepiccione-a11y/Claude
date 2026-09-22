@@ -1,0 +1,48 @@
+---
+import Emblem from "./Emblem.astro";
+import { NAV_LINKS, CRISIS_LINE } from "../utils/constants";
+
+const path = Astro.url.pathname.replace(/\/$/, "") || "/";
+const isActive = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
+---
+
+<div class="crisis-bar">
+  Veteran in crisis? Call <a href={`tel:${CRISIS_LINE.phone}`}>{CRISIS_LINE.phone}</a> and press {CRISIS_LINE.press},
+  text <a href={`sms:${CRISIS_LINE.text}`}>{CRISIS_LINE.text}</a>, or
+  <a href={CRISIS_LINE.url} target="_blank" rel="noopener">chat online</a> — free, confidential, 24/7.
+</div>
+
+<header class="site-header">
+  <div class="container site-header__inner">
+    <a href="/" class="brand" aria-label="American Legion Post 186 home">
+      <Emblem class="brand__mark" />
+      <span class="brand__text">
+        <span class="brand__name">American Legion Post 186</span>
+        <span class="brand__sub">Frank M. Calletta · Jennings, MO</span>
+      </span>
+    </a>
+
+    <button class="menu-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Open menu">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <path d="M3 6h18M3 12h18M3 18h18" />
+      </svg>
+    </button>
+
+    <nav id="site-nav" class="nav" aria-label="Main">
+      {NAV_LINKS.filter((l) => l.href !== "/contact").map((link) => (
+        <a href={link.href} aria-current={isActive(link.href) ? "page" : undefined}>{link.label}</a>
+      ))}
+      <a href="/contact" class="btn btn--primary btn--sm" aria-current={isActive("/contact") ? "page" : undefined}>Get Help</a>
+    </nav>
+  </div>
+</header>
+
+<script>
+  const toggle = document.querySelector<HTMLButtonElement>(".menu-toggle");
+  const nav = document.getElementById("site-nav");
+  toggle?.addEventListener("click", () => {
+    const open = nav?.classList.toggle("is-open") ?? false;
+    toggle.setAttribute("aria-expanded", String(open));
+    toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+  });
+</script>

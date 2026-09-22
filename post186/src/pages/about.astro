@@ -1,0 +1,95 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Icon from "../components/Icon.astro";
+import { ORG_NAME, ORG_ADDRESS_ONE_LINE, ORG_MAP_URL } from "../utils/constants";
+
+const values = [
+  { title: "Service", text: "We served in uniform. We keep serving at home — our fellow veterans, their families, and our neighbors." },
+  { title: "Comradeship", text: "Shared experience builds a bond that does not end with discharge papers. Here, you are among people who understand." },
+  { title: "Remembrance", text: "We honor the fallen and those still missing, and we keep their stories alive for the next generation." },
+  { title: "Community", text: "A strong community makes for strong veterans. We show up for Jennings, and Jennings shows up for us." },
+];
+---
+
+<Layout title="About Us" description={`Learn about ${ORG_NAME}, its namesake, and its commitment to veterans and families in Jennings, Missouri.`}>
+  <section class="page-hero">
+    <div class="container">
+      <p class="eyebrow">About Post 186</p>
+      <h1>Veterans serving veterans, families, and community.</h1>
+      <p>For generations, American Legion posts have been where veterans turn for help, fellowship, and a way to keep serving. Post 186 carries that tradition forward in Jennings.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container split">
+      <div>
+        <p class="eyebrow">Our namesake</p>
+        <h2>Frank M. Calletta</h2>
+        <p>
+          Our post proudly bears the name of Frank M. Calletta. Carrying his name is a daily reminder of the
+          sacrifice behind every uniform — and of our duty to care for those who come home.
+        </p>
+        <p>
+          Every event we host, every veteran we help, and every family we support is part of honoring that name.
+        </p>
+      </div>
+      <div>
+        <p class="eyebrow">The American Legion</p>
+        <h2>A national legacy, a local mission</h2>
+        <p>
+          Chartered by Congress in 1919, The American Legion is the nation's largest wartime veterans service
+          organization, built on four pillars: Veterans Affairs &amp; Rehabilitation, National Security,
+          Americanism, and Children &amp; Youth.
+        </p>
+        <p>
+          As a local post, we translate that national mission into practical help for the veterans who live,
+          work, and raise families right here in our community.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--white">
+    <div class="container">
+      <div class="section-head section-head--center">
+        <p class="eyebrow">What we stand for</p>
+        <h2>Our values</h2>
+      </div>
+      <div class="grid grid--4">
+        {values.map((v) => (
+          <div class="pillar">
+            <h3>{v.title}</h3>
+            <p>{v.text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container split">
+      <div>
+        <p class="eyebrow">Membership</p>
+        <h2>Who can join?</h2>
+        <p>
+          Membership in The American Legion is open to veterans who served honorably during eligible periods of
+          service as defined by the national organization. Not sure if you qualify? Reach out and we will help
+          you find out.
+        </p>
+        <p>
+          Family members may be eligible for the American Legion Auxiliary or Sons of The American Legion, and
+          everyone is welcome to volunteer and attend community events.
+        </p>
+        <a href="/contact?topic=Membership" class="btn btn--primary">Ask about membership</a>
+      </div>
+      <div class="panel">
+        <h3>Visit the post</h3>
+        <ul class="facts" style="margin-top:8px">
+          <li><Icon name="pin" /><span>{ORG_ADDRESS_ONE_LINE}<br /><a href={ORG_MAP_URL} target="_blank" rel="noopener">Get directions</a></span></li>
+          <li><Icon name="mail" /><span><a href="/contact">Send us a message</a> — we'll respond personally.</span></li>
+          <li><Icon name="calendar" /><span><a href="/events">See what's happening</a> at the post.</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</Layout>
