@@ -1,0 +1,52 @@
+---
+import Emblem from "./Emblem.astro";
+import { ORG_NAME, ORG_ADDRESS, ORG_MAP_URL, NAV_LINKS, CRISIS_LINE } from "../utils/constants";
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <a href="/" class="brand" style="color:#fff;margin-bottom:16px">
+          <Emblem class="brand__mark" />
+          <span class="brand__name" style="color:#fff">Post 186</span>
+        </a>
+        <p>
+          {ORG_NAME} is a community of veterans dedicated to serving fellow veterans, their families, and
+          our neighbors in Jennings and North St. Louis County.
+        </p>
+      </div>
+
+      <div>
+        <h3>Explore</h3>
+        <ul>
+          {NAV_LINKS.map((link) => <li><a href={link.href}>{link.label}</a></li>)}
+        </ul>
+      </div>
+
+      <div>
+        <h3>Visit</h3>
+        <p style="margin:0">
+          {ORG_ADDRESS.line1}<br />
+          {ORG_ADDRESS.city}, {ORG_ADDRESS.region} {ORG_ADDRESS.postalCode}
+        </p>
+        <p><a href={ORG_MAP_URL} target="_blank" rel="noopener">Get directions →</a></p>
+      </div>
+
+      <div>
+        <h3>Immediate help</h3>
+        <p style="margin-bottom:8px">
+          Veterans Crisis Line: call <a href={`tel:${CRISIS_LINE.phone}`}>{CRISIS_LINE.phone}</a>, press {CRISIS_LINE.press}
+          or text <a href={`sms:${CRISIS_LINE.text}`}>{CRISIS_LINE.text}</a>.
+        </p>
+        <p><a href="/contact">Request assistance from the post →</a></p>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <span>© {year} {ORG_NAME}. All rights reserved.</span>
+      <span>For God and Country.</span>
+    </div>
+  </div>
+</footer>

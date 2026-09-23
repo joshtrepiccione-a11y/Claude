@@ -1,0 +1,96 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Icon from "../components/Icon.astro";
+import ServiceCard from "../components/ServiceCard.astro";
+import { getServices, type ServiceSummary } from "../utils/booking-service";
+
+let services: ServiceSummary[] = [];
+let servicesError = false;
+try {
+  services = await getServices();
+} catch (error) {
+  console.error("Failed to load services", error);
+  servicesError = true;
+}
+
+const programs = [
+  {
+    icon: "shield" as const,
+    title: "Benefits & VA Navigation",
+    text: "Understanding VA healthcare, disability compensation, education benefits, and pensions can be overwhelming. We help veterans and survivors find the right resources and connect with accredited service officers.",
+    topic: "Veteran assistance",
+  },
+  {
+    icon: "heart" as const,
+    title: "Counseling & Peer Support",
+    text: "Confidential conversations with people who have been there. We offer supportive sessions and connect veterans to professional mental health care when it is needed.",
+    topic: "Veteran assistance",
+  },
+  {
+    icon: "arrow" as const,
+    title: "Transition & Employment",
+    text: "Workshops on resumes, interviewing, and networking help veterans translate military experience into civilian careers with confidence.",
+    topic: "Veteran assistance",
+  },
+  {
+    icon: "users" as const,
+    title: "Military Family Support",
+    text: "Spouses, children, and caregivers serve too. We host family gatherings and help families facing hardship find practical assistance.",
+    topic: "Veteran assistance",
+  },
+  {
+    icon: "flag" as const,
+    title: "Honors & Remembrance",
+    text: "Memorial Day and Veterans Day observances, flag retirement, and color guard support for community ceremonies.",
+    topic: "General question",
+  },
+  {
+    icon: "hands" as const,
+    title: "Community Outreach",
+    text: "Fundraisers, food drives, school visits, and neighborhood events that strengthen the bonds between veterans and the Jennings community.",
+    topic: "Volunteering",
+  },
+];
+---
+
+<Layout title="Programs & Services" description="Veteran assistance, counseling, transition support, family programs, and community outreach from American Legion Post 186.">
+  <section class="page-hero">
+    <div class="container">
+      <p class="eyebrow">Programs &amp; services</p>
+      <h1>Practical help. Lasting support.</h1>
+      <p>Our programs meet veterans and families where they are — whether that's filing a claim, finding a job, or simply finding community.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="grid grid--3">
+        {programs.map((p) => (
+          <div class="pillar" style="display:flex;flex-direction:column">
+            <div class="pillar__icon"><Icon name={p.icon} size={24} /></div>
+            <h3>{p.title}</h3>
+            <p style="margin-bottom:16px">{p.text}</p>
+            <a class="link-arrow" style="margin-top:auto" href={`/contact?topic=${encodeURIComponent(p.topic)}`}>Get in touch →</a>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--white" id="book">
+    <div class="container">
+      <div class="section-head section-head--center">
+        <p class="eyebrow">Book online</p>
+        <h2>Schedule a service</h2>
+        <p>Choose a service below to see available times and reserve your spot.</p>
+      </div>
+      {servicesError ? (
+        <div class="notice notice--error">We couldn't load our services right now. Please refresh, or <a href="/contact">contact us</a> to schedule.</div>
+      ) : services.length > 0 ? (
+        <div class="grid grid--3">{services.map((service) => <ServiceCard service={service} />)}</div>
+      ) : (
+        <div class="empty">Online booking will be available soon. <a href="/contact">Contact us</a> to schedule in the meantime.</div>
+      )}
+    </div>
+  </section>
+</Layout>

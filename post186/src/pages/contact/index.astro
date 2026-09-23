@@ -1,0 +1,62 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Icon from "../../components/Icon.astro";
+import ContactForm from "../../components/ContactForm.astro";
+import { ORG_ADDRESS, ORG_MAP_URL, CRISIS_LINE } from "../../utils/constants";
+
+const topic = Astro.url.searchParams.get("topic");
+---
+
+<Layout title="Contact & Get Help" description="Request assistance, ask about membership, volunteer, or rent the hall at American Legion Post 186 in Jennings, MO.">
+  <section class="page-hero">
+    <div class="container">
+      <p class="eyebrow">Contact &amp; assistance</p>
+      <h1>How can we help?</h1>
+      <p>Whether you're a veteran looking for support, a family member with questions, or a neighbor who wants to help, send us a note and a member of Post 186 will follow up personally.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container split" style="align-items:start">
+      <div class="panel">
+        <h2 style="font-size:1.5rem">Send us a message</h2>
+        <ContactForm topic={topic} />
+      </div>
+
+      <div style="display:grid;gap:20px">
+        <div class="notice notice--error" style="padding:20px">
+          <strong style="display:block;margin-bottom:6px">If you or a veteran you know is in crisis</strong>
+          Call <a href={`tel:${CRISIS_LINE.phone}`}>{CRISIS_LINE.phone}</a> and press {CRISIS_LINE.press}, text
+          <a href={`sms:${CRISIS_LINE.text}`}>{CRISIS_LINE.text}</a>, or <a href={CRISIS_LINE.url} target="_blank" rel="noopener">chat online</a>.
+          Free, confidential support is available 24/7. In an emergency, call 911.
+        </div>
+
+        <div class="panel">
+          <h3>Visit the post</h3>
+          <ul class="facts" style="margin:12px 0 0">
+            <li>
+              <Icon name="pin" />
+              <span>
+                {ORG_ADDRESS.line1}<br />{ORG_ADDRESS.city}, {ORG_ADDRESS.region} {ORG_ADDRESS.postalCode}<br />
+                <a href={ORG_MAP_URL} target="_blank" rel="noopener">Get directions</a>
+              </span>
+            </li>
+            <li><Icon name="calendar" /><span><a href="/book">Book a support session online</a></span></li>
+            <li><Icon name="ticket" /><span><a href="/events">RSVP for upcoming events</a></span></li>
+          </ul>
+        </div>
+
+        <div class="panel">
+          <h3>We can help with</h3>
+          <ul class="checklist" style="margin:12px 0 0">
+            <li>VA benefits, claims, and resource referrals</li>
+            <li>Membership in Post 186</li>
+            <li>Volunteering and community partnerships</li>
+            <li>Hall rentals for gatherings and celebrations</li>
+            <li>Donations to support local veterans</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+</Layout>

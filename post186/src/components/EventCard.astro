@@ -1,0 +1,44 @@
+---
+import Icon from "./Icon.astro";
+import { wixImageUrl } from "../utils/media";
+import type { EventSummary } from "../utils/events-service";
+
+interface Props {
+  event: EventSummary;
+}
+const { event } = Astro.props;
+const img = wixImageUrl(event.image, 800, 450);
+const start = event.startIso ? new Date(event.startIso) : null;
+const month = start ? start.toLocaleString("en-US", { month: "short", timeZone: event.timeZone }) : "";
+const day = start ? start.toLocaleString("en-US", { day: "numeric", timeZone: event.timeZone }) : "";
+const isTicketed = event.registrationType === "TICKETING";
+---
+
+<a class="card" href={`/events/${event.slug}`}>
+  <div class="card__media">
+    {img && <img src={img} alt="" loading="lazy" width="800" height="450" />}
+  </div>
+  <div class="card__body">
+    <div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:12px">
+      {start && (
+        <span class="date-badge" aria-hidden="true">
+          <span class="date-badge__m">{month}</span>
+          <span class="date-badge__d">{day}</span>
+        </span>
+      )}
+      <div>
+        <h3 style="margin-bottom:6px">{event.title}</h3>
+        <div class="card__meta">
+          <span style="display:inline-flex;gap:6px;align-items:center"><Icon name="clock" size={15} />{event.dateAndTime}</span>
+        </div>
+      </div>
+    </div>
+    {event.shortDescription && <p>{event.shortDescription}</p>}
+    <div class="card__foot">
+      <span class:list={["pill", isTicketed ? "pill--red" : "pill--navy"]}>
+        {isTicketed ? (event.lowestPrice ? `Tickets from ${event.lowestPrice}` : "Tickets") : "Free · RSVP"}
+      </span>
+      <span class="link-arrow">Details →</span>
+    </div>
+  </div>
+</a>

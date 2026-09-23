@@ -1,0 +1,316 @@
+---
+import { WIX_APPS } from "@wix/essentials";
+import { SEO } from "@wix/seo/components";
+import { loadSEOTagsServiceConfig } from "@wix/seo/services";
+import { seoTags } from "@wix/seo";
+import { wixEventsV2 } from "@wix/events";
+import Layout from "../../layouts/Layout.astro";
+import Icon from "../../components/Icon.astro";
+import { wixImageUrl } from "../../utils/media";
+
+// Registers this route in /_wix/pages.json so the sitemap and the dashboard
+// SEO editor know about event pages.
+export const wixMetadata = {
+  appDefId: WIX_APPS.events.id,
+  pageIdentifier: WIX_APPS.events.eventPageMetadata.pageIdentifier,
+  identifiers: {
+    slug: WIX_APPS.events.eventPageMetadata.identifiers.slug,
+  },
+};
+
+const slug = Astro.params.slug!;
+
+const [eventRes, seoConfig] = await Promise.all([
+  wixEventsV2
+    .getEventBySlug(slug, { fields: ["DETAILS", "TEXTS", "REGISTRATION", "URLS"] })
+    .catch((err) => {
+      console.error("Failed to load event", err);
+      return null;
+    }),
+  loadSEOTagsServiceConfig({
+    pageUrl: Astro.url.href,
+    itemType: seoTags.ItemType.EVENTS_PAGE,
+    itemData: { slug },
+  }).catch(() => null),
+]);
+
+const raw: any = eventRes?.event ?? null;
+const event = raw && {
+  id: raw._id as string,
+  slug: raw.slug as string,
+  title: raw.title as string,
+  shortDescription: raw.shortDescription ?? "",
+  image: wixImageUrl(raw.mainImage, 1400, 875),
+  dateAndTime: raw.dateAndTimeSettings?.formatted?.dateAndTime ?? "",
+  locationName: raw.location?.name ?? "",
+  address: raw.location?.address?.addressLine ?? raw.location?.address?.formatted ?? "",
+  registrationType: raw.registration?.initialType ?? raw.registration?.type,
+  registrationStatus: raw.registration?.status ?? "",
+  allowDecline: raw.registration?.rsvp?.responseType === "YES_AND_NO",
+  googleCalendar: raw.calendarUrls?.google ?? "",
+};
+
+const isTicketed = event?.registrationType === "TICKETING";
+const isClosed = event && /CLOSED|DISABLED|PAUSED/.test(event.registrationStatus);
+
+if (!event) {
+  Astro.response.status = 404;
+}
+---
+
+<Layout title={event?.title ?? "Event not found"} description={event?.shortDescription || undefined}>
+  {seoConfig && <SEO.Tags seoTagsServiceConfig={seoConfig} slot="seo-tags" />}
+
+  {event ? (
+    <section class="section">
+      <div class="container">
+        <p><a class="link-arrow" href="/events">← All events</a></p>
+        <div class="event-detail">
+          <div>
+            <div class="event-detail__img">
+              {event.image && <img src={event.image} alt={event.title} width="1400" height="875" />}
+            </div>
+          </div>
+
+          <div>
+            <p class="eyebrow">{isTicketed ? "Get tickets" : "RSVP"}</p>
+            <h1 style="font-size:clamp(2rem,4vw,2.8rem)">{event.title}</h1>
+            <ul class="facts">
+              {event.dateAndTime && <li><Icon name="calendar" /><span>{event.dateAndTime}</span></li>}
+              {(event.locationName || event.address) && (
+                <li><Icon name="pin" /><span>{event.locationName}{event.address && <><br /><span class="muted">{event.address}</span></>}</span></li>
+              )}
+              {event.googleCalendar && <li><Icon name="clock" /><a href={event.googleCalendar} target="_blank" rel="noopener">Add to Google Calendar</a></li>}
+            </ul>
+            {event.shortDescription && <p>{event.shortDescription}</p>}
+
+            <div class="panel" style="margin-top:24px">
+              {isClosed ? (
+                <p class="muted" style="margin:0">Registration for this event is closed.</p>
+              ) : isTicketed ? (
+                <div id="tickets" data-event-id={event.id} data-event-slug={event.slug}>
+                  <h2 style="font-size:1.3rem">Tickets</h2>
+                  <div id="tickets-loading" class="spinner" role="status" aria-label="Loading tickets"></div>
+                  <div id="tickets-list"></div>
+                  <p id="tickets-empty" class="muted" hidden>Tickets aren't on sale yet. Please check back soon.</p>
+                  <button id="tickets-submit" class="btn btn--primary btn--block" style="margin-top:16px" hidden>Get tickets</button>
+                  <div id="tickets-error" class="notice notice--error" style="margin-top:12px" role="alert" hidden></div>
+                </div>
+              ) : (
+                <div>
+                  <form id="rsvp-form" data-event-id={event.id} novalidate>
+                    <h2 style="font-size:1.3rem">Reserve your spot</h2>
+                    <div class="form-grid">
+                      <div class="form-field form-field--half">
+                        <label class="form-label" for="rsvp-first">First name <span class="req">*</span></label>
+                        <input class="form-input" id="rsvp-first" name="firstName" autocomplete="given-name" required />
+                      </div>
+                      <div class="form-field form-field--half">
+                        <label class="form-label" for="rsvp-last">Last name <span class="req">*</span></label>
+                        <input class="form-input" id="rsvp-last" name="lastName" autocomplete="family-name" required />
+                      </div>
+                      <div class="form-field">
+                        <label class="form-label" for="rsvp-email">Email <span class="req">*</span></label>
+                        <input class="form-input" id="rsvp-email" name="email" type="email" autocomplete="email" required />
+                      </div>
+                    </div>
+                    <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap">
+                      <button type="submit" value="YES" class="btn btn--primary" style="flex:1">RSVP — I'll be there</button>
+                      {event.allowDecline && <button type="submit" value="NO" class="btn btn--outline" style="flex:1">Can't make it</button>}
+                    </div>
+                    <div id="rsvp-error" class="notice notice--error" style="margin-top:12px" role="alert" hidden></div>
+                  </form>
+                  <div id="rsvp-done" class="notice notice--success" role="status" hidden></div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  ) : (
+    <section class="section">
+      <div class="container center">
+        <h1>We couldn't find that event.</h1>
+        <p class="muted">It may have ended or been moved.</p>
+        <a href="/events" class="btn btn--navy">See all events</a>
+      </div>
+    </section>
+  )}
+</Layout>
+
+<script>
+  import { orders, ticketReservations, rsvpV2 } from "@wix/events";
+  import { redirects } from "@wix/redirects";
+
+  /* RSVP events */
+  const rsvpForm = document.getElementById("rsvp-form") as HTMLFormElement | null;
+  if (rsvpForm) {
+    const errorBox = document.getElementById("rsvp-error")!;
+    const doneBox = document.getElementById("rsvp-done")!;
+
+    rsvpForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorBox.hidden = true;
+      if (!rsvpForm.checkValidity()) {
+        rsvpForm.reportValidity();
+        return;
+      }
+      const submitter = (e as SubmitEvent).submitter as HTMLButtonElement | null;
+      const status = (submitter?.value === "NO" ? "NO" : "YES") as "YES" | "NO";
+      const data = new FormData(rsvpForm);
+      const buttons = rsvpForm.querySelectorAll<HTMLButtonElement>("button");
+      buttons.forEach((b) => (b.disabled = true));
+
+      try {
+        await rsvpV2.createRsvp({
+          eventId: rsvpForm.dataset.eventId!,
+          firstName: String(data.get("firstName")).trim(),
+          lastName: String(data.get("lastName")).trim(),
+          email: String(data.get("email")).trim(),
+          status,
+          additionalGuestDetails: { guestCount: 0 },
+        });
+        rsvpForm.hidden = true;
+        doneBox.textContent =
+          status === "YES"
+            ? `You're on the list! A confirmation was sent to ${data.get("email")}.`
+            : "Thanks for letting us know. We hope to see you at a future event.";
+        doneBox.hidden = false;
+      } catch (err) {
+        console.error("RSVP failed", err);
+        errorBox.textContent = "We couldn't save your RSVP. Please try again.";
+        errorBox.hidden = false;
+      } finally {
+        buttons.forEach((b) => (b.disabled = false));
+      }
+    });
+  }
+
+  /* Ticketed events */
+  const ticketsEl = document.getElementById("tickets");
+  if (ticketsEl) {
+    const eventId = ticketsEl.dataset.eventId!;
+    const eventSlug = ticketsEl.dataset.eventSlug!;
+    const loading = document.getElementById("tickets-loading")!;
+    const list = document.getElementById("tickets-list")!;
+    const empty = document.getElementById("tickets-empty")!;
+    const submit = document.getElementById("tickets-submit") as HTMLButtonElement;
+    const errorBox = document.getElementById("tickets-error")!;
+    const quantities = new Map<string, number>();
+
+    const formatPrice = (tier: any) => {
+      if (tier.free) return "Free";
+      const amount = Number(tier.price?.amount ?? tier.price?.value);
+      const currency = tier.price?.currency;
+      if (!currency || Number.isNaN(amount)) return "";
+      return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount);
+    };
+
+    const showError = (msg: string) => {
+      errorBox.textContent = msg;
+      errorBox.hidden = false;
+    };
+
+    orders
+      .queryAvailableTickets({ filter: { eventId }, limit: 50 })
+      .then(({ definitions }) => {
+        loading.remove();
+        const tiers = (definitions ?? []).filter((t: any) => !t.dashboard?.hidden);
+        if (tiers.length === 0) {
+          empty.hidden = false;
+          return;
+        }
+        for (const tier of tiers) {
+          const id = tier._id!;
+          const max = tier.limitPerCheckout || 10;
+          quantities.set(id, 0);
+
+          const row = document.createElement("div");
+          row.className = "tier";
+          const info = document.createElement("div");
+          const name = document.createElement("p");
+          name.className = "tier__name";
+          name.textContent = tier.name ?? "Ticket";
+          const price = document.createElement("p");
+          price.className = "tier__price";
+          price.textContent = formatPrice(tier);
+          info.append(name, price);
+          if (tier.description) {
+            const desc = document.createElement("p");
+            desc.className = "tier__price";
+            desc.textContent = tier.description;
+            info.append(desc);
+          }
+
+          const qty = document.createElement("div");
+          qty.className = "qty";
+          const minus = document.createElement("button");
+          minus.type = "button";
+          minus.className = "icon-btn";
+          minus.textContent = "−";
+          minus.setAttribute("aria-label", `Remove one ${tier.name}`);
+          const out = document.createElement("output");
+          out.textContent = "0";
+          out.setAttribute("aria-live", "polite");
+          const plus = document.createElement("button");
+          plus.type = "button";
+          plus.className = "icon-btn";
+          plus.textContent = "+";
+          plus.setAttribute("aria-label", `Add one ${tier.name}`);
+          const set = (n: number) => {
+            const v = Math.max(0, Math.min(max, n));
+            quantities.set(id, v);
+            out.textContent = String(v);
+          };
+          minus.addEventListener("click", () => set((quantities.get(id) ?? 0) - 1));
+          plus.addEventListener("click", () => set((quantities.get(id) ?? 0) + 1));
+          qty.append(minus, out, plus);
+
+          row.append(info, qty);
+          list.append(row);
+        }
+        submit.hidden = false;
+      })
+      .catch((err) => {
+        console.error("Failed to load tickets", err);
+        loading.remove();
+        showError("We couldn't load tickets right now. Please refresh the page.");
+      });
+
+    submit.addEventListener("click", async () => {
+      errorBox.hidden = true;
+      const tickets = [...quantities.entries()]
+        .filter(([, q]) => q > 0)
+        .map(([ticketDefinitionId, quantity]) => ({ ticketDefinitionId, quantity }));
+      if (tickets.length === 0) {
+        showError("Choose at least one ticket.");
+        return;
+      }
+      submit.disabled = true;
+      submit.textContent = "Reserving…";
+      try {
+        const reservation = await ticketReservations.createTicketReservation({ tickets });
+        const origin = window.location.origin;
+        const { redirectSession } = await redirects.createRedirectSession({
+          eventsCheckout: { reservationId: reservation._id!, eventSlug },
+          callbacks: {
+            thankYouPageUrl: `${origin}/event-confirmation`,
+            postFlowUrl: `${origin}/events/${eventSlug}`,
+          },
+        });
+        window.location.href = redirectSession!.fullUrl!;
+      } catch (err: any) {
+        console.error("Ticket reservation failed", err);
+        const msg = String(err?.message ?? "");
+        showError(
+          /payment method|not configured|premium/i.test(msg)
+            ? "Online ticket sales aren't switched on yet. Please contact the post to reserve tickets."
+            : "We couldn't reserve your tickets. Please try again.",
+        );
+        submit.disabled = false;
+        submit.textContent = "Get tickets";
+      }
+    });
+  }
+</script>

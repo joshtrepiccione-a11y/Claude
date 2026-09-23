@@ -1,0 +1,39 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Booking Confirmed">
+  <section class="section">
+    <div class="container" style="max-width:640px">
+      <div class="panel center">
+        <p class="eyebrow">Booking confirmed</p>
+        <h1 style="font-size:2.2rem">You're booked.</h1>
+        <p class="muted">Thank you for scheduling with Post 186. A confirmation email with your booking details is on its way.</p>
+        <dl id="booking-details" class="summary" style="text-align:left;display:inline-block;margin-top:8px" hidden>
+          <div><dt>Service: </dt><dd id="d-service"></dd></div>
+          <div><dt>Date: </dt><dd id="d-date"></dd></div>
+          <div><dt>Time: </dt><dd id="d-time"></dd></div>
+        </dl>
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:24px">
+          <a href="/" class="btn btn--outline">Back to home</a>
+          <a href="/book" class="btn btn--navy">Book another</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<script>
+  // Free bookings stash their details before redirecting here; paid bookings arrive from Wix checkout.
+  try {
+    const raw = sessionStorage.getItem("post186-booking");
+    if (raw) {
+      const data = JSON.parse(raw);
+      document.getElementById("d-service")!.textContent = data.serviceName ?? "";
+      document.getElementById("d-date")!.textContent = data.displayDate ?? "";
+      document.getElementById("d-time")!.textContent = data.displayTime ?? "";
+      document.getElementById("booking-details")!.hidden = false;
+      sessionStorage.removeItem("post186-booking");
+    }
+  } catch {}
+</script>
