@@ -14,5 +14,16 @@
       "Bash(git push --force *)",
       "Bash(git push -f *)"
     ]
+  },
+  "extraKnownMarketplaces": {
+    "typesafe-ai": {
+      "source": {
+        "source": "github",
+        "repo": "typesafe-ai/skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "typesafe@typesafe-ai": true
   }
 }
