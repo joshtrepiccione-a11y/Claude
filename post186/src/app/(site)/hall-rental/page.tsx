@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { cacheLife, cacheTag } from "next/cache";
 import { CONTENT_CACHE } from "@/lib/cache";
-import { ArrowRight, Check, Clock, Phone, Users } from "@/components/icons";
+import { Check, Clock, Phone, Users } from "@/components/icons";
 import { BookingWidget } from "@/components/site/BookingWidget";
 import { PageHeader, SectionHeading } from "@/components/site/PageHeader";
 import { getHallAvailability, getSettings } from "@/lib/data";
@@ -169,7 +169,7 @@ async function HallContent() {
               Rates
             </h2>
             {hall.rates.length ? (
-              <div className="card mt-5 overflow-x-auto">
+              <div className="card scroll-x mt-5">
                 <table className="table">
                   <caption className="sr-only">Hall rental rates</caption>
                   <thead>
@@ -183,7 +183,7 @@ async function HallContent() {
                   <tbody>
                     {hall.rates.map((rate) => (
                       <tr key={rate.label}>
-                        <th scope="row" className="!border-b !border-line-soft !p-3 !font-sans !text-base !normal-case !tracking-normal">
+                        <th scope="row" className="!whitespace-normal !border-b !border-line-soft !p-3 !font-sans !text-base !normal-case !tracking-normal">
                           <span className="font-bold text-ink">{rate.label}</span>
                           {rate.note && <span className="block text-[0.9375rem] font-normal text-body">{rate.note}</span>}
                         </th>
@@ -220,9 +220,10 @@ async function HallContent() {
             </ul>
             <p className="mt-6">
               Questions before you request?{" "}
-              <Link href="/officers#contact" className="link-arrow">
-                Contact the post <ArrowRight size={18} />
+              <Link href="/officers#contact" className="link">
+                Contact the post
               </Link>
+              .
             </p>
           </div>
         </div>

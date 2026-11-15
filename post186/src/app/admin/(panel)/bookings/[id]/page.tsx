@@ -209,7 +209,7 @@ export default async function BookingDetail({ params, searchParams }: PageProps<
             <ul className="mt-3 space-y-2">
               {booking.contactPhone && (
                 <li>
-                  <a href={telHref(booking.contactPhone)} className="inline-flex min-h-9 items-center gap-2 font-semibold text-azure hover:underline">
+                  <a href={telHref(booking.contactPhone)} className="inline-flex min-h-11 items-center gap-2 font-semibold text-azure hover:underline">
                     <Phone size={17} /> {booking.contactPhone}
                   </a>
                 </li>
@@ -218,7 +218,7 @@ export default async function BookingDetail({ params, searchParams }: PageProps<
                 <li>
                   <a
                     href={`mailto:${booking.contactEmail}?subject=${encodeURIComponent(`Your hall request ${booking.reference}`)}`}
-                    className="inline-flex min-h-9 items-center gap-2 break-all font-semibold text-azure hover:underline"
+                    className="inline-flex min-h-11 items-center gap-2 break-all font-semibold text-azure hover:underline"
                   >
                     <Mail size={17} className="flex-none" /> {booking.contactEmail}
                   </a>

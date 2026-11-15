@@ -60,12 +60,44 @@ export async function seedStarterContent(client: Client): Promise<void> {
     },
   ];
 
+  // The post meets on the second Tuesday of every month. The start time is not
+  // known here, so the meeting is saved as a draft: an officer adds the time and
+  // publishes it (the dashboard reminds them). Until then it is not on the website.
+  statements.push({
+    sql: `INSERT INTO events (slug, title, summary, description, category, location,
+            start_date, start_time, end_time, recurrence, audience, uses_hall, published,
+            created_at, updated_at)
+          VALUES (?, ?, ?, ?, 'meeting', ?, ?, NULL, NULL, 'monthly_nth', 'members', 1, 0, ?, ?)`,
+    args: [
+      MEETING_SLUG,
+      "Monthly Membership Meeting",
+      "Post business, reports and fellowship on the second Tuesday of each month.",
+      "Our regular monthly meeting: officer and committee reports, upcoming events and new business.\n\nEligible veterans who are thinking about joining are welcome to stop in and meet the officers.",
+      hall,
+      nextSecondTuesday(todayInPostTz()),
+      now,
+      now,
+    ],
+  });
+
   try {
     await client.batch(statements, "write");
   } catch (error) {
     // "seeded" already exists (or another worker won the race): nothing to do.
     if (!/UNIQUE|constraint/i.test(String((error as Error)?.message ?? error))) throw error;
   }
+}
+
+/** Slug of the starter meeting event; the dashboard looks for it while it is still a draft. */
+export const MEETING_SLUG = "monthly-membership-meeting";
+
+/** The second Tuesday on or after the given date. */
+function nextSecondTuesday(from: Ymd): Ymd {
+  const month = `${from.slice(0, 7)}-01`;
+  const thisMonth = nthWeekdayOfMonth(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 2, 2)!;
+  if (thisMonth >= from) return thisMonth;
+  const next = addMonths(month, 1);
+  return nthWeekdayOfMonth(Number(next.slice(0, 4)), Number(next.slice(5, 7)), 2, 2)!;
 }
 
 function nextWeekday(from: Ymd, weekday: number): Ymd {
@@ -92,18 +124,6 @@ export function demoContentStatements(): InStatement[] {
   const today = todayInPostTz();
   const hall = "Post 186 Hall, 101 French Street, Hammonton";
 
-  // Second Tuesday on or after today.
-  let y = Number(today.slice(0, 4));
-  let m = Number(today.slice(5, 7));
-  let meeting = nthWeekdayOfMonth(y, m, 2, 2)!;
-  if (meeting < today) {
-    m += 1;
-    if (m > 12) {
-      m = 1;
-      y += 1;
-    }
-    meeting = nthWeekdayOfMonth(y, m, 2, 2)!;
-  }
   let breakfast = lastWeekdayOfMonth(Number(today.slice(0, 4)), Number(today.slice(5, 7)), 0);
   if (breakfast < today) {
     const next = addMonths(`${today.slice(0, 7)}-01`, 1);
@@ -129,21 +149,6 @@ export function demoContentStatements(): InStatement[] {
   };
 
   const events: DemoEvent[] = [
-    {
-      slug: "monthly-membership-meeting",
-      title: "Monthly Membership Meeting",
-      summary: "Post business, committee reports and fellowship. All members in good standing are welcome.",
-      description:
-        "Our regular monthly meeting. Agenda includes officer and committee reports, upcoming events, and new business.\n\nEligible veterans who are thinking about joining are welcome to stop in beforehand and meet the officers.",
-      category: "meeting",
-      location: hall,
-      date: meeting,
-      start: "19:00",
-      end: "20:30",
-      recurrence: "monthly_nth",
-      audience: "members",
-      usesHall: true,
-    },
     {
       slug: "community-breakfast",
       title: "Community Breakfast",

@@ -18,16 +18,16 @@ async function Gate({ children }: { children: ReactNode }) {
     <>
       <header className="bg-navy text-white">
         <div className="flex min-h-14 flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 py-2 sm:px-6">
-          <Link href="/admin" className="caps text-xl">
+          <Link href="/admin" className="caps inline-flex min-h-11 items-center gap-1.5 text-xl">
             Post 186 <span className="text-white/75">Admin</span>
           </Link>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[0.9375rem]">
             <span className="hidden text-white/85 sm:inline">{admin.name || admin.email}</span>
-            <Link href="/" className="inline-flex min-h-10 items-center gap-1.5 font-semibold hover:underline">
+            <Link href="/" className="inline-flex min-h-11 items-center gap-1.5 font-semibold hover:underline">
               View website <External size={15} />
             </Link>
             <form action={logout}>
-              <button type="submit" className="min-h-10 font-semibold underline underline-offset-4">
+              <button type="submit" className="min-h-11 font-semibold underline underline-offset-4">
                 Sign out
               </button>
             </form>

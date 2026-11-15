@@ -70,14 +70,14 @@ export function Lockup({
       </span>
       <span className="flex flex-col leading-none">
         <span
-          className={`caps tracking-[0.14em] ${big ? "text-sm" : "text-[0.6875rem] sm:text-xs"} ${
+          className={`caps tracking-[0.14em] max-[359px]:tracking-[0.04em] ${big ? "text-sm" : "text-[0.6875rem] sm:text-xs"} ${
             onDark ? "text-white/85" : "text-azure"
           }`}
         >
           {settings.orgName}
         </span>
         <span
-          className={`caps mt-1 ${big ? "text-2xl sm:text-3xl" : "text-lg sm:text-[1.375rem]"} ${
+          className={`caps mt-1 ${big ? "text-2xl sm:text-3xl" : "text-lg max-[359px]:text-base sm:text-[1.375rem]"} ${
             onDark ? "text-white" : "text-navy"
           }`}
         >

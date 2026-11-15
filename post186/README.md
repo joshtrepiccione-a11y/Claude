@@ -61,7 +61,10 @@ Visitors can still write to an officer through the contact form without seeing t
       local news coverage in June 2026, by name and title only. Check them and add the rest in **Admin → Officers**.
 - [ ] **Confirm the hall details** in **Admin → Settings**: capacity (starts at 80), what the hall offers,
       rental hours, policies. Rates are blank until you add them; until then the page says “contact us for a quote”.
-- [ ] **Set the meeting schedule** in **Admin → Settings**, and add the meeting as a repeating event.
+- [ ] **Publish the monthly meeting.** It is already set up to repeat on the second Tuesday of each month, saved
+      as a draft because the start time was not known. Open it under **Admin → Events**, untick “All day”, enter
+      the time, tick “Show on the website” and save. (The dashboard reminds you.) The meeting sentence shown
+      around the site is under **Admin → Settings → Meeting schedule**.
 - [ ] **Add the email address** that should receive hall requests and messages (**Settings → Notifications**).
 - [ ] **Remove sample content** if you added any (**Dashboard → Sample content**).
 - [ ] **Add the official brandmark** (see below) and, if you have them, photos of the hall.
@@ -191,6 +194,20 @@ libSQL/SQLite, Zod. No client-side data fetching and no third-party scripts, fon
 HTTP-only cookie. Public forms are validated on the server, rate-limited and protected by a honeypot field.
 The public calendar exposes only a status per date, never renter details. There are no cookies, analytics
 or third-party requests on the public pages.
+
+**Screen sizes.** The layout is fluid from a 320 px phone to a wide desktop, with breakpoints at 640, 768,
+1024 and 1280 px. Every page (public and admin) was checked at ten widths from 320 to 1920 px for sideways
+scrolling, off-screen content and tap targets. A few rules keep it that way:
+
+- Grid children get `min-width: 0` globally, so a wide table or long word cannot stretch a phone layout.
+- Anything that may be wider than the screen goes in a `.scroll-x` box; admin lists also use `.table-stack`,
+  which turns each row into a stacked block on phones.
+- Links and buttons that stand on their own are at least 44 px tall on touch screens (`.btn`, `.link-arrow`,
+  `min-h-11`).
+- The main menu collapses to a “Menu” button below 1024 px, on the public site and in the admin area.
+- The home-page stripes artwork only appears from 1280 px up, where it has room beside the headline.
+
+If a style change does not show up in development, stop the server, delete the `.next` folder and start again.
 
 **Accessibility.** Built to WCAG 2.1 AA: semantic landmarks and headings, a skip link, visible focus,
 labelled form fields with errors tied to their inputs, keyboard-operable calendars and menus, sufficient

@@ -8,6 +8,7 @@ import { addDays, formatDateShort, formatTimeRange, todayInPostTz } from "@/lib/
 import { emailConfigured } from "@/lib/email";
 import { occurrencesBetween } from "@/lib/recurrence";
 import * as repo from "@/lib/repo";
+import { MEETING_SLUG } from "@/lib/seed";
 
 // Admin pages always load live data after checking the sign-in, so they are allowed to wait.
 export const instant = false;
@@ -35,6 +36,12 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
 
   // Things worth doing before (or soon after) the site goes live.
   const todo: { text: string; href: string }[] = [];
+  const meetingDraft = events.find((event) => event.slug === MEETING_SLUG && !event.published);
+  if (meetingDraft)
+    todo.push({
+      text: "The monthly meeting (second Tuesday) is saved as a draft. Open it, untick “All day”, enter the start time, tick “Show on the website” and save.",
+      href: `/admin/events/${meetingDraft.id}`,
+    });
   if (demoRows > 0) todo.push({ text: "Remove the sample events and bookings before launch.", href: "#sample" });
   if (!settings.notifyEmail)
     todo.push({ text: "Add the email address that should receive hall requests and messages.", href: "/admin/settings" });

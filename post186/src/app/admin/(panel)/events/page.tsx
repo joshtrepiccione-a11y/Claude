@@ -17,8 +17,8 @@ export const metadata: Metadata = { title: "Events" };
 
 function EventTable({ rows, caption }: { rows: { event: EventRecord; when: string }[]; caption: string }) {
   return (
-    <div className="card overflow-x-auto">
-      <table className="table">
+    <div className="card scroll-x">
+      <table className="table table-stack">
         <caption className="sr-only">{caption}</caption>
         <thead>
           <tr>
@@ -52,7 +52,7 @@ function EventTable({ rows, caption }: { rows: { event: EventRecord; when: strin
                 )}
               </td>
               <td>
-                <div className="flex flex-wrap justify-end gap-2">
+                <div className="flex flex-wrap gap-2 sm:justify-end">
                   <Link href={`/admin/events/${event.id}`} className="btn btn-quiet btn-sm">
                     <Pencil size={15} /> Edit
                   </Link>

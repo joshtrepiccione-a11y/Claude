@@ -19,7 +19,7 @@ export type SiteSettings = {
   phone: string;
   email: string;
   facebookUrl: string;
-  /** Free text, e.g. "Second Tuesday of each month at 7:00 PM". */
+  /** Free text, e.g. "Second Tuesday of each month at 7:00 PM". Shown on the home, events and contact pages. */
   meetingSchedule: string;
   /** Free text, e.g. canteen or office hours. Hidden when empty. */
   hours: string;
@@ -64,8 +64,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   phone: "(609) 567-4748",
   email: "",
   facebookUrl: "https://www.facebook.com/p/Hammonton-American-Legion-Post-186-61561087720417/",
-  meetingSchedule:
-    "Membership meetings are held monthly at the post. Call us for this month's date and time.",
+  meetingSchedule: "Membership meetings are held on the second Tuesday of each month at the post.",
   hours: "",
   announcement: { enabled: false, text: "", linkLabel: "", linkUrl: "" },
   notifyEmail: "",

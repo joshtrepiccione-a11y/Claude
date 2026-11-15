@@ -69,7 +69,7 @@ export function NavView({ pathname, ...props }: NavProps & { pathname: string })
         onClick={() => setOpen((v) => !v)}
       >
         {open ? <X size={24} /> : <Menu size={24} />}
-        <span>{open ? "Close" : "Menu"}</span>
+        <span className="max-[359px]:sr-only">{open ? "Close" : "Menu"}</span>
       </button>
 
       <div

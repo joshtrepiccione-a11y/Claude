@@ -42,18 +42,23 @@ async function EventsContent() {
       <div>
         <EventsViews today={data.today} entries={data.calendar}>
           {data.upcoming.length ? (
-            groupByMonth(data.upcoming).map(([month, occurrences]) => (
-              <section key={month} aria-labelledby={`month-${month}`} className="mb-8">
-                <h2 id={`month-${month}`} className="border-b-2 border-navy pb-2 text-2xl md:text-3xl">
-                  {formatMonthYear(month)}
-                </h2>
-                <ul className="divide-y divide-line-soft">
-                  {occurrences.map((occurrence) => (
-                    <EventRow key={`${occurrence.event.id}-${occurrence.date}`} occurrence={occurrence} />
-                  ))}
-                </ul>
-              </section>
-            ))
+            <>
+              {groupByMonth(data.upcoming).map(([month, occurrences]) => (
+                <section key={month} aria-labelledby={`month-${month}`} className="mb-8">
+                  <h2 id={`month-${month}`} className="border-b-2 border-navy pb-2 text-2xl md:text-3xl">
+                    {formatMonthYear(month)}
+                  </h2>
+                  <ul className="divide-y divide-line-soft">
+                    {occurrences.map((occurrence) => (
+                      <EventRow key={`${occurrence.event.id}-${occurrence.date}`} occurrence={occurrence} />
+                    ))}
+                  </ul>
+                </section>
+              ))}
+              <p className="text-[0.9375rem]">
+                Showing the next ten weeks. Switch to <strong>Month</strong> above to look further ahead.
+              </p>
+            </>
           ) : (
             <div className="rounded-md bg-cloud p-6">
               <h2 className="text-2xl">No upcoming events are posted yet</h2>
@@ -64,12 +69,6 @@ async function EventsContent() {
             </div>
           )}
         </EventsViews>
-
-        {data.upcoming.length > 0 && (
-          <p className="text-[0.9375rem]">
-            Showing the next ten weeks. Switch to <strong>Month</strong> above to look further ahead.
-          </p>
-        )}
 
         {data.past.length > 0 && (
           <details className="mt-10 rounded-md border border-line">

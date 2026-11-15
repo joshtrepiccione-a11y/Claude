@@ -48,12 +48,12 @@ function OfficerCard({ officer }: { officer: PublicOfficer }) {
       {officer.bio && <p className="mt-4 text-[0.9375rem]">{officer.bio}</p>}
 
       {(officer.phone || officer.email) && (
-        <ul className="mt-4 space-y-1.5">
+        <ul className="mt-3">
           {officer.phone && (
             <li>
               <a
                 href={telHref(officer.phone)}
-                className="inline-flex min-h-9 items-center gap-2 font-semibold text-azure hover:underline"
+                className="inline-flex min-h-11 items-center gap-2 font-semibold text-azure hover:underline"
               >
                 <Phone size={17} /> {officer.phone}
               </a>
@@ -63,7 +63,7 @@ function OfficerCard({ officer }: { officer: PublicOfficer }) {
             <li>
               <a
                 href={`mailto:${officer.email}`}
-                className="inline-flex min-h-9 items-center gap-2 break-all font-semibold text-azure hover:underline"
+                className="inline-flex min-h-11 items-center gap-2 break-all font-semibold text-azure hover:underline"
               >
                 <Mail size={17} className="flex-none" /> {officer.email}
               </a>
@@ -172,7 +172,7 @@ async function OfficersContent() {
               {settings.phone && (
                 <p className="flex items-center gap-3">
                   <Phone size={20} className="flex-none text-azure" />
-                  <a href={telHref(settings.phone)} className="link text-lg">
+                  <a href={telHref(settings.phone)} className="link inline-flex min-h-11 items-center text-lg">
                     {settings.phone}
                   </a>
                 </p>
@@ -180,7 +180,7 @@ async function OfficersContent() {
               {settings.email && (
                 <p className="flex items-center gap-3">
                   <Mail size={20} className="flex-none text-azure" />
-                  <a href={`mailto:${settings.email}`} className="link break-all">
+                  <a href={`mailto:${settings.email}`} className="link inline-flex min-h-11 items-center break-all">
                     {settings.email}
                   </a>
                 </p>
@@ -202,7 +202,7 @@ async function OfficersContent() {
                   <a
                     href={settings.facebookUrl}
                     rel="noopener"
-                    className="inline-flex min-h-9 items-center gap-2 font-bold text-navy hover:text-azure hover:underline"
+                    className="inline-flex min-h-11 items-center gap-2 font-bold text-navy hover:text-azure hover:underline"
                   >
                     <Facebook size={22} /> Post {settings.postNumber} on Facebook
                   </a>

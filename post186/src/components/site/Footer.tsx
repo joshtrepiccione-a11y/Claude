@@ -109,29 +109,29 @@ export function Footer({ settings, year }: { settings: SiteSettings; year: numbe
                   <span className="font-semibold text-ink">Mail:</span> {settings.mailingAddress}
                 </p>
               )}
-              <ul className="mt-3 space-y-1.5">
+              <ul className="mt-2">
                 {settings.phone && (
                   <li>
-                    <a href={telHref(settings.phone)} className="inline-flex min-h-8 items-center gap-2 font-bold text-azure hover:underline">
+                    <a href={telHref(settings.phone)} className="inline-flex min-h-11 items-center gap-2 font-bold text-azure hover:underline">
                       <Phone size={17} /> {settings.phone}
                     </a>
                   </li>
                 )}
                 {settings.email && (
                   <li>
-                    <a href={`mailto:${settings.email}`} className="inline-flex min-h-8 items-center gap-2 break-all font-bold text-azure hover:underline">
+                    <a href={`mailto:${settings.email}`} className="inline-flex min-h-11 items-center gap-2 break-all font-bold text-azure hover:underline">
                       <Mail size={17} className="flex-none" /> {settings.email}
                     </a>
                   </li>
                 )}
                 <li>
-                  <a href={directionsUrl(settings)} rel="noopener" className="inline-flex min-h-8 items-center gap-2 font-bold text-azure hover:underline">
+                  <a href={directionsUrl(settings)} rel="noopener" className="inline-flex min-h-11 items-center gap-2 font-bold text-azure hover:underline">
                     <MapPin size={17} /> Get directions
                   </a>
                 </li>
                 {settings.facebookUrl && (
                   <li>
-                    <a href={settings.facebookUrl} rel="noopener" className="inline-flex min-h-8 items-center gap-2 font-bold text-azure hover:underline">
+                    <a href={settings.facebookUrl} rel="noopener" className="inline-flex min-h-11 items-center gap-2 font-bold text-azure hover:underline">
                       <Facebook size={18} /> Follow us on Facebook
                     </a>
                   </li>
@@ -151,14 +151,14 @@ export function Footer({ settings, year }: { settings: SiteSettings; year: numbe
           <p>
             © {year} {fullPostName(settings)}
           </p>
-          <ul className="flex flex-wrap gap-x-5 gap-y-1">
+          <ul className="flex flex-wrap items-center gap-x-6">
             <li>
-              <Link href="/privacy" className="text-azure hover:underline">
+              <Link href="/privacy" className="inline-flex min-h-11 items-center text-azure hover:underline">
                 Privacy
               </Link>
             </li>
             <li>
-              <Link href="/admin" className="text-azure hover:underline" prefetch={false}>
+              <Link href="/admin" className="inline-flex min-h-11 items-center text-azure hover:underline" prefetch={false}>
                 Officer sign-in
               </Link>
             </li>

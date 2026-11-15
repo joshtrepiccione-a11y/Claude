@@ -111,16 +111,16 @@ function BookingWidgetBody({ availability, hall, phone, phoneHref }: WidgetProps
   return (
     <div className="grid gap-10 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:gap-12">
       {/* Step 1: calendar */}
-      <section aria-labelledby="calendar-heading">
+      <section aria-labelledby="calendar-heading" className="max-w-md lg:max-w-none">
         <h3 id="calendar-heading" className="flex items-center gap-3">
           <span className="caps flex size-9 flex-none items-center justify-center rounded-full bg-navy text-lg text-white">
             1
           </span>
           Pick an open date
         </h3>
-        <div className="card mt-4 p-4 sm:p-5">
+        <div className="card mt-4 p-2.5 sm:p-5">
           <MonthNav month={month} min={firstMonth} max={lastMonth} onChange={setMonth} label="hall availability" compact />
-          <table className="mt-3 w-full table-fixed border-separate border-spacing-1">
+          <table className="mt-3 w-full table-fixed border-separate border-spacing-0.5 sm:border-spacing-1">
             <caption className="sr-only">Hall availability for {formatMonthYear(month)}</caption>
             <thead>
               <tr>

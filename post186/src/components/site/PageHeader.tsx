@@ -19,17 +19,17 @@ export function PageHeader({
     <div className="flag-backdrop relative overflow-hidden text-white">
       <StarField className="pointer-events-none absolute -right-10 top-0 hidden h-full w-[34rem] opacity-60 md:block" />
       <div className="container-page relative py-10 md:py-14">
-        <nav aria-label="Breadcrumb" className="mb-4">
-          <ol className="flex flex-wrap items-center gap-1 text-[0.9375rem] text-white/85">
+        <nav aria-label="Breadcrumb" className="mb-2">
+          <ol className="flex flex-wrap items-center gap-x-1 text-[0.9375rem] text-white/85">
             <li>
-              <Link href="/" className="hover:text-white hover:underline">
+              <Link href="/" className="-mx-1 inline-flex min-h-11 items-center px-1 hover:text-white hover:underline">
                 Home
               </Link>
             </li>
             {crumbs.map((crumb) => (
               <li key={crumb.href} className="flex items-center gap-1">
                 <ChevronRight size={15} className="opacity-70" />
-                <Link href={crumb.href} className="hover:text-white hover:underline">
+                <Link href={crumb.href} className="inline-flex min-h-11 items-center hover:text-white hover:underline">
                   {crumb.label}
                 </Link>
               </li>

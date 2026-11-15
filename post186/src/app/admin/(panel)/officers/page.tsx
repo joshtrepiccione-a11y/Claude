@@ -32,8 +32,8 @@ export default async function OfficersAdmin({ searchParams }: PageProps<"/admin/
       <Flash saved={saved} />
 
       {officers.length ? (
-        <div className="card overflow-x-auto">
-          <table className="table">
+        <div className="card scroll-x">
+          <table className="table table-stack">
             <caption className="sr-only">Post officers</caption>
             <thead>
               <tr>
@@ -59,7 +59,7 @@ export default async function OfficersAdmin({ searchParams }: PageProps<"/admin/
                             <button
                               type="submit"
                               disabled={disabled}
-                              className="btn btn-quiet btn-sm !px-2"
+                              className="btn btn-quiet btn-sm !px-3"
                               aria-label={`Move ${officer.name} ${direction}`}
                             >
                               {direction === "up" ? <ChevronUp size={17} /> : <ChevronDown size={17} />}
@@ -86,7 +86,7 @@ export default async function OfficersAdmin({ searchParams }: PageProps<"/admin/
                     <span className="block">Message button: {officer.acceptsMessages ? "on" : "off"}</span>
                   </td>
                   <td>
-                    <div className="flex flex-wrap justify-end gap-2">
+                    <div className="flex flex-wrap gap-2 sm:justify-end">
                       <Link href={`/admin/officers/${officer.id}`} className="btn btn-quiet btn-sm">
                         <Pencil size={15} /> Edit
                       </Link>

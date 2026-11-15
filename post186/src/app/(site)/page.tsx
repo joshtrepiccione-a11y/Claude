@@ -4,7 +4,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { CONTENT_CACHE } from "@/lib/cache";
 import { ArrowRight, Building, Calendar, MapPin, Users } from "@/components/icons";
 import { DateBadge, EventRow } from "@/components/site/EventBits";
-import { HeroArt, StarRow } from "@/components/site/FlagArt";
+import { HeroArt, StarField, StarRow } from "@/components/site/FlagArt";
 import { SectionHeading } from "@/components/site/PageHeader";
 import { getSettings, getUpcomingOccurrences } from "@/lib/data";
 import { formatDateLong, formatTimeRange } from "@/lib/dates";
@@ -47,7 +47,12 @@ async function Hero() {
           <div className="absolute inset-0 bg-gradient-to-r from-navy-deep via-navy-deep/40 to-transparent" />
         </div>
       ) : (
-        <HeroArt className="pointer-events-none absolute inset-y-0 right-0 hidden h-full w-[58%] md:block" />
+        <>
+          {/* The stripes need room beside the headline, so they appear on wide screens only;
+              tablets and small laptops get a quiet field of stars instead. */}
+          <HeroArt className="pointer-events-none absolute inset-y-0 right-0 hidden h-full w-[58%] xl:block" />
+          <StarField className="pointer-events-none absolute -right-10 top-0 hidden h-full w-[34rem] opacity-60 md:block xl:hidden" />
+        </>
       )}
 
       <div className="container-page relative grid gap-10 py-14 md:py-20 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-center lg:py-24">
@@ -68,12 +73,12 @@ async function Hero() {
               Rent Our Hall
             </Link>
           </div>
-          <p className="mt-8 flex items-start gap-2 text-white/90">
-            <MapPin size={20} className="mt-1 flex-none" />
+          <p className="mt-6 flex items-center gap-2 text-white/90">
+            <MapPin size={20} className="flex-none" />
             <a
               href={directionsUrl(settings)}
               rel="noopener"
-              className="underline decoration-white/40 underline-offset-4 hover:decoration-white"
+              className="inline-flex min-h-11 items-center underline decoration-white/40 underline-offset-4 hover:decoration-white"
             >
               {addressLine(settings)}
             </a>
@@ -84,7 +89,7 @@ async function Hero() {
           aria-labelledby="next-heading"
           className="rounded-lg bg-white p-5 text-body shadow-2xl sm:p-6 lg:ml-auto lg:w-full lg:max-w-md"
         >
-          <div className="flex items-center justify-between gap-3 border-b-2 border-navy pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 border-b-2 border-navy pb-2">
             <h2 id="next-heading" className="text-2xl">
               Next at the Post
             </h2>
@@ -100,7 +105,7 @@ async function Hero() {
                   <div className="min-w-0">
                     <Link
                       href={`/events/${event.slug}`}
-                      className="font-display text-lg font-bold leading-snug text-navy hover:text-azure hover:underline"
+                      className="-my-2.5 inline-block py-2.5 font-display text-lg font-bold leading-snug text-navy hover:text-azure hover:underline"
                     >
                       {event.title}
                     </Link>

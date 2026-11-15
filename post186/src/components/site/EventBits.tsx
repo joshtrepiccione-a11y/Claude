@@ -59,7 +59,7 @@ export function EventRow({ occurrence, showSummary = true }: { occurrence: Occur
         <h3 className="mt-1.5">
           <Link
             href={`/events/${event.slug}`}
-            className={`text-navy hover:text-azure hover:underline ${event.cancelled ? "line-through decoration-2" : ""}`}
+            className={`-my-2 inline-block py-2 text-navy hover:text-azure hover:underline ${event.cancelled ? "line-through decoration-2" : ""}`}
           >
             {event.title}
           </Link>
@@ -84,7 +84,7 @@ export function EventRow({ occurrence, showSummary = true }: { occurrence: Occur
         href={`/events/${event.slug}`}
         aria-hidden="true"
         tabIndex={-1}
-        className="hidden self-center rounded-full border border-line p-2.5 text-azure hover:border-azure hover:bg-azure hover:text-white md:block"
+        className="hidden self-center rounded-full border border-line p-3 text-azure hover:border-azure hover:bg-azure hover:text-white md:block"
       >
         <ArrowRight size={20} />
       </Link>

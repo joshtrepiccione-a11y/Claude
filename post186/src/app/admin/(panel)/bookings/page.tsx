@@ -81,8 +81,8 @@ export default async function BookingsAdmin({ searchParams }: PageProps<"/admin/
       </nav>
 
       {bookings.length ? (
-        <div className="card overflow-x-auto">
-          <table className="table">
+        <div className="card scroll-x">
+          <table className="table table-stack">
             <caption className="sr-only">Hall bookings</caption>
             <thead>
               <tr>

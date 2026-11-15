@@ -63,14 +63,14 @@ export default async function MessagesAdmin({ searchParams }: PageProps<"/admin/
                 <li>
                   <a
                     href={`mailto:${message.email}?subject=${encodeURIComponent(`Re: ${message.topic} — American Legion Post 186`)}`}
-                    className="inline-flex min-h-9 items-center gap-2 break-all font-semibold text-azure hover:underline"
+                    className="inline-flex min-h-11 items-center gap-2 break-all font-semibold text-azure hover:underline"
                   >
                     <Mail size={17} className="flex-none" /> Reply to {message.email}
                   </a>
                 </li>
                 {message.phone && (
                   <li>
-                    <a href={telHref(message.phone)} className="inline-flex min-h-9 items-center gap-2 font-semibold text-azure hover:underline">
+                    <a href={telHref(message.phone)} className="inline-flex min-h-11 items-center gap-2 font-semibold text-azure hover:underline">
                       <Phone size={17} /> {message.phone}
                     </a>
                   </li>
