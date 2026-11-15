@@ -19,6 +19,16 @@ cd v2 && npm test                       # vitest suite
 
 See [`docs/v2-spec.md`](docs/v2-spec.md) for the v2 product spec.
 
+### Also in this repository
+
+| Project | Path | Stack | Purpose |
+|---------|------|-------|---------|
+| **American Legion Post 186 website** | `post186/` | Next.js 16 + TypeScript + Tailwind + SQLite/libSQL | Public site for The American Legion Frank M. Calletta Post 186 (Hammonton, NJ): events calendar, hall rental requests, officers & contact, with an officer admin area at `/admin` |
+
+`post186/` is a separate, self-contained app with its own dependencies and deployment. It is not part of
+the LD8 / County Clerk builds, and the root `vercel.json` and `netlify.toml` do not apply to it. See
+[`post186/README.md`](post186/README.md).
+
 ---
 
 ## v3-clerk — 2026 Atlantic County Clerk (Bender vs. Giralo)
