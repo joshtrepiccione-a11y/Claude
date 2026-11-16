@@ -5,7 +5,7 @@ import { addressLine, directionsUrl, fullPostName, telHref, type SiteSettings } 
 import { Lockup } from "./Lockup";
 import { NavView, SiteNav } from "./SiteNav";
 
-export function Header({ settings }: { settings: SiteSettings }) {
+export function Header({ settings, preview = false }: { settings: SiteSettings; preview?: boolean }) {
   const nav = {
     phone: settings.phone,
     phoneHref: telHref(settings.phone),
@@ -18,6 +18,14 @@ export function Header({ settings }: { settings: SiteSettings }) {
       <a href="#main" className="sr-only-focusable btn btn-red fixed left-3 top-3 z-50">
         Skip to main content
       </a>
+
+      {preview && (
+        <div role="note" className="bg-warn-soft text-ink">
+          <p className="container-page py-2 text-center text-[0.9375rem] font-semibold">
+            Preview site with sample content. Requests, messages and changes made here are not saved.
+          </p>
+        </div>
+      )}
 
       {announcement.enabled && announcement.text && (
         <div className="bg-azure text-white">

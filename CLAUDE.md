@@ -53,8 +53,12 @@ Things to know before changing it:
   Admin pages export `instant = false`.
 - **Dates and times** are wall-clock strings (`YYYY-MM-DD`, `HH:MM`) in the post's time zone and are never
   converted; use the helpers in `src/lib/dates.ts` rather than `Date` arithmetic.
-- **Database.** All SQL lives in `src/lib/repo.ts`; tables are created in `src/lib/db.ts`. A local SQLite
-  file is used unless `TURSO_DATABASE_URL` is set.
+- **Database.** All SQL lives in `src/lib/repo.ts`; `src/lib/db.ts` creates the tables and picks the
+  database: Turso over HTTPS when `TURSO_DATABASE_URL` is set, otherwise a local file via Node's built-in
+  `node:sqlite` (Node 22.13+). On Netlify or Vercel with no database set it runs in preview mode on a
+  temporary database with sample content and a banner.
+- **Netlify.** The Post 186 site is its own Netlify site with Base directory `post186`, configured by
+  `post186/netlify.toml`. The root `netlify.toml` is for the v3-clerk site.
 - **Branding.** Do not add, redraw or alter The American Legion emblem. The official brandmark is supplied
   by the post as files in `post186/public/brand/` (see `post186/README.md`).
 

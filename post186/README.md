@@ -102,38 +102,59 @@ Only use photos the post has the right to publish.
 
 ## Putting it online
 
-The site needs a host that runs Node.js and a small database. Two good options:
+The site runs on any host that supports Node.js 22. Netlify is the simplest.
 
-### Option A — Vercel + Turso (free for a site this size)
+### Option A — Netlify (free for a site this size)
 
-1. Create a free database at <https://turso.tech>. Copy its **URL** and an **auth token**.
-2. At <https://vercel.com>, **Add New → Project**, import this repository and set
-   **Root Directory** to `post186`.
-3. Under **Environment Variables**, add:
+**Step 1 — get a link to look at (a few minutes, nothing else to sign up for)**
+
+1. In Netlify choose **Add new site → Import an existing project**, pick GitHub and this repository.
+2. Choose the branch that contains the site, and set **Base directory** to `post186`.
+   Leave the build command and publish directory alone; they are read from `post186/netlify.toml`.
+3. Click **Deploy**. Netlify gives you a `…netlify.app` address.
+
+With no database set up yet the site runs in **preview mode**: it shows sample content and a
+“Preview site” banner, and nothing typed into it is kept. That is enough to look the site over and share it
+for comments.
+
+**Step 2 — make it the real site (about ten minutes)**
+
+1. Create a free database at <https://turso.tech>. Copy its **URL** and create an **auth token**.
+2. In Netlify open **Site configuration → Environment variables** and add:
 
    | Name | Value |
    |------|-------|
-   | `TURSO_DATABASE_URL` | the database URL from step 1 (`libsql://…`) |
-   | `TURSO_AUTH_TOKEN` | the token from step 1 |
+   | `TURSO_DATABASE_URL` | the database URL (`libsql://…`) |
+   | `TURSO_AUTH_TOKEN` | the database token |
    | `ADMIN_EMAIL` | the email you will sign in with |
    | `ADMIN_PASSWORD` | a password of at least 10 characters |
    | `SITE_URL` | the site’s address, for example `https://www.post186.org` |
 
-4. Deploy. Open `/admin`, sign in with that email and password, and work through the checklist above.
+3. Open **Deploys → Trigger deploy → Deploy site**. The preview banner disappears.
+4. Open `/admin`, sign in with that email and password, and work through the checklist above.
    After the first sign-in, passwords are managed in **Admin → Account** and the two `ADMIN_` variables are ignored.
-5. Add your domain name under **Settings → Domains**.
+5. Add your domain name under **Domain management**.
 
-### Option B — any server with a disk
+Note: the `netlify.toml` at the top of this repository belongs to a different Netlify site. The Post 186 site
+is its own Netlify site, with its base directory set to `post186`.
+
+### Option B — Vercel
+
+The same two steps work on Vercel: import the repository, set **Root Directory** to `post186`, deploy for a
+preview, then add the five variables above and redeploy.
+
+### Option C — any server with a disk
 
 ```bash
 cd post186
 npm ci
-ADMIN_EMAIL=you@example.org ADMIN_PASSWORD='choose-a-long-one' SITE_URL=https://www.post186.org npm run build
+npm run build
 ADMIN_EMAIL=you@example.org ADMIN_PASSWORD='choose-a-long-one' SITE_URL=https://www.post186.org npm start
 ```
 
-With no database variables set, everything is stored in one file, `data/post186.db`.
-**Back that file up** — it holds the events, bookings, messages and sign-ins. Serve the site over HTTPS.
+Needs Node.js 22.13 or newer. With no database variables set, everything is stored in one file,
+`data/post186.db`. **Back that file up** — it holds the events, bookings, messages and sign-ins. Serve the
+site over HTTPS.
 
 ### Email notifications (optional)
 
@@ -170,15 +191,17 @@ A local database is created on first run. In development you can sign in at `/ad
 | `npx vitest run tests/recurrence.test.ts` | Run a single test file |
 | `npm run lint` / `npm run typecheck` | ESLint / TypeScript |
 
-**Stack.** Next.js 16 (App Router, Cache Components), React 19, TypeScript, Tailwind CSS 4,
-libSQL/SQLite, Zod. No client-side data fetching and no third-party scripts, fonts or trackers.
+**Stack.** Next.js 16 (App Router, Cache Components), React 19, TypeScript, Tailwind CSS 4, Zod, and
+SQLite: Node's built-in `node:sqlite` for the local file, Turso (libSQL over HTTPS) when hosted. Node.js
+22.13 or newer. No client-side data fetching and no third-party scripts, fonts or trackers.
 
 **How it fits together**
 
 - `src/app/(site)/` — the four public pages, plus `/privacy`, `/hall-rental/status`, event detail pages and
   the calendar feed at `/events/calendar.ics`.
 - `src/app/admin/` — the officer area. Every page and every action calls `requireAdmin()`.
-- `src/lib/repo.ts` — all database reads and writes. `src/lib/db.ts` creates the tables on first use.
+- `src/lib/repo.ts` — all database reads and writes. `src/lib/db.ts` picks the database (hosted, local
+  file, or the temporary preview database), creates the tables on first use, and has no native add-ons.
 - `src/lib/data.ts` — cached reads for the public site, tagged `settings`, `events`, `officers`, `bookings`.
   Public pages are prerendered and served static; an admin save calls `updateTag(...)`, so changes are live at once.
 - `src/lib/actions/` — server actions for the public forms (`public.ts`) and the admin area (`admin.ts`).

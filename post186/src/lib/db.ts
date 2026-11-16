@@ -1,39 +1,89 @@
 import "server-only";
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { createClient, type Client, type InStatement, type InValue, type Row } from "@libsql/client";
 
 /**
  * Database access.
  *
- * - Local development and self-hosting: a single SQLite file at ./data/post186.db
- *   (created automatically — there is nothing to install or configure).
- * - Vercel / Netlify / any serverless host: a hosted libSQL database (Turso).
+ * Where the data lives depends on where the site runs:
+ *
+ * - Live site on Netlify or Vercel: a hosted libSQL database (Turso).
  *   Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN.
+ * - Your own computer, or a server with a disk: one SQLite file at
+ *   ./data/post186.db, created automatically. Nothing to install.
+ * - Netlify or Vercel with no database configured yet: PREVIEW MODE. The site
+ *   runs on a temporary database filled with sample content so it can be
+ *   looked at straight away. Nothing entered is kept. See isPreviewDatabase().
  *
  * Tables are created on first use, so a brand-new database just works.
+ *
+ * The file database uses Node's built-in SQLite, so there is no native add-on
+ * to compile or ship; the hosted database is reached over HTTPS.
  */
 
-type DbState = { client: Client; ready: Promise<void> };
+export type SqlValue = string | number | bigint | null;
+export type Row = Record<string, unknown>;
+export type Statement = { sql: string; args?: SqlValue[] };
 
-const globalForDb = globalThis as unknown as { __post186Db?: DbState };
+type Driver = {
+  all(sql: string, args: SqlValue[]): Promise<Row[]>;
+  run(sql: string, args: SqlValue[]): Promise<{ lastInsertId: number; changes: number }>;
+  /** Runs every statement, or none of them. */
+  batch(statements: Statement[]): Promise<void>;
+};
 
-function resolveConfig(): { url: string; authToken?: string; isFile: boolean } {
+type Config =
+  | { kind: "remote"; url: string; authToken?: string; preview: false }
+  | { kind: "file"; file: string; preview: boolean };
+
+const globalForDb = globalThis as unknown as {
+  __post186Db?: Promise<Driver>;
+  __post186DbConfig?: Config;
+};
+
+/** True on hosts that give each request a short-lived machine with no disk of its own. */
+function onServerlessHost(): boolean {
+  const env = process.env;
+  return Boolean(env.NETLIFY || env.VERCEL || env.AWS_LAMBDA_FUNCTION_NAME || env.LAMBDA_TASK_ROOT);
+}
+
+function resolveConfig(): Config {
+  if (globalForDb.__post186DbConfig) return globalForDb.__post186DbConfig;
+
   const url = process.env.TURSO_DATABASE_URL || process.env.DATABASE_URL;
   const authToken = process.env.TURSO_AUTH_TOKEN || process.env.DATABASE_AUTH_TOKEN;
-  if (url) return { url, authToken, isFile: url.startsWith("file:") };
+  const previewFile = path.join(os.tmpdir(), "post186-preview.db");
 
-  if (process.env.VERCEL || process.env.NETLIFY) {
-    throw new Error(
-      "No database configured. This host has no permanent disk, so the site needs a hosted database: " +
-        "create a free Turso database and set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN. See post186/README.md.",
-    );
+  let config: Config;
+  if (url && !url.startsWith("file:")) {
+    config = { kind: "remote", url, authToken, preview: false };
+  } else if (url) {
+    config = { kind: "file", file: url.slice("file:".length), preview: false };
+  } else if (onServerlessHost()) {
+    config = { kind: "file", file: previewFile, preview: true };
+  } else {
+    try {
+      const dir = path.join(process.cwd(), "data");
+      fs.mkdirSync(dir, { recursive: true });
+      config = { kind: "file", file: path.join(dir, "post186.db"), preview: false };
+    } catch {
+      // No writable disk here either: fall back to the temporary preview database.
+      config = { kind: "file", file: previewFile, preview: true };
+    }
   }
+  globalForDb.__post186DbConfig = config;
+  return config;
+}
 
-  const dir = path.join(process.cwd(), "data");
-  fs.mkdirSync(dir, { recursive: true });
-  return { url: `file:${path.join(dir, "post186.db")}`, isFile: true };
+/**
+ * Preview mode: the site is running without a permanent database, on sample
+ * content, and nothing entered is kept. The public pages show a banner, and
+ * adding the database settings turns it into the real site.
+ */
+export function isPreviewDatabase(): boolean {
+  return resolveConfig().preview;
 }
 
 const SCHEMA: string[] = [
@@ -148,59 +198,109 @@ const SCHEMA: string[] = [
    )`,
 ];
 
-async function initialize(client: Client, isFile: boolean): Promise<void> {
-  if (isFile) {
-    // Several build workers can open the file at once; wait instead of failing.
-    await client.execute("PRAGMA busy_timeout = 8000");
-    await client.execute("PRAGMA journal_mode = WAL");
-  }
-  await client.batch(SCHEMA, "write");
+async function openFile(file: string): Promise<Driver> {
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(file);
+  // Several build workers can open the file at once; wait instead of failing.
+  db.exec("PRAGMA busy_timeout = 8000");
+  db.exec("PRAGMA journal_mode = WAL");
 
-  const { seedStarterContent } = await import("./seed");
-  await seedStarterContent(client);
+  return {
+    async all(sql, args) {
+      return db.prepare(sql).all(...args) as Row[];
+    },
+    async run(sql, args) {
+      const result = db.prepare(sql).run(...args);
+      return { lastInsertId: Number(result.lastInsertRowid), changes: Number(result.changes) };
+    },
+    async batch(statements) {
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        for (const statement of statements) db.prepare(statement.sql).run(...(statement.args ?? []));
+        db.exec("COMMIT");
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
+      }
+    },
+  };
 }
 
-function state(): DbState {
+async function openRemote(url: string, authToken?: string): Promise<Driver> {
+  // The "web" client talks to the database over HTTPS only, which is what
+  // short-lived serverless functions need.
+  const { createClient } = await import("@libsql/client/web");
+  const client = createClient({ url, authToken });
+
+  return {
+    async all(sql, args) {
+      const result = await client.execute({ sql, args });
+      return result.rows as unknown as Row[];
+    },
+    async run(sql, args) {
+      const result = await client.execute({ sql, args });
+      return { lastInsertId: Number(result.lastInsertRowid ?? 0), changes: result.rowsAffected };
+    },
+    async batch(statements) {
+      await client.batch(
+        statements.map((statement) => ({ sql: statement.sql, args: statement.args ?? [] })),
+        "write",
+      );
+    },
+  };
+}
+
+const isDuplicate = (error: unknown) => /UNIQUE|constraint/i.test(String((error as Error)?.message ?? error));
+
+async function open(): Promise<Driver> {
+  const config = resolveConfig();
+  const driver =
+    config.kind === "remote" ? await openRemote(config.url, config.authToken) : await openFile(config.file);
+
+  await driver.batch(SCHEMA.map((sql) => ({ sql })));
+
+  const { seedStarterContent, demoContentStatements } = await import("./seed");
+  await seedStarterContent(driver.batch);
+
+  if (config.preview) {
+    // Fill the temporary database with sample content, once.
+    try {
+      await driver.batch([
+        { sql: "INSERT INTO kv (key, value) VALUES ('preview_seeded', '1')" },
+        ...demoContentStatements(),
+      ]);
+    } catch (error) {
+      if (!isDuplicate(error)) throw error;
+    }
+  }
+  return driver;
+}
+
+function db(): Promise<Driver> {
   if (!globalForDb.__post186Db) {
-    const { url, authToken, isFile } = resolveConfig();
-    const client = createClient({ url, authToken });
-    const ready = initialize(client, isFile).catch((error) => {
+    globalForDb.__post186Db = open().catch((error) => {
       // Let the next request retry instead of caching a failed start-up forever.
       globalForDb.__post186Db = undefined;
       throw error;
     });
-    globalForDb.__post186Db = { client, ready };
   }
   return globalForDb.__post186Db;
 }
 
-export type { Row, InValue };
-
-export async function query(sql: string, args: InValue[] = []): Promise<Row[]> {
-  const { client, ready } = state();
-  await ready;
-  const result = await client.execute({ sql, args });
-  return result.rows;
+export async function query(sql: string, args: SqlValue[] = []): Promise<Row[]> {
+  return (await db()).all(sql, args);
 }
 
 export async function run(
   sql: string,
-  args: InValue[] = [],
+  args: SqlValue[] = [],
 ): Promise<{ lastInsertId: number; changes: number }> {
-  const { client, ready } = state();
-  await ready;
-  const result = await client.execute({ sql, args });
-  return {
-    lastInsertId: Number(result.lastInsertRowid ?? 0),
-    changes: result.rowsAffected,
-  };
+  return (await db()).run(sql, args);
 }
 
 /** Runs several statements as one all-or-nothing transaction. */
-export async function transaction(statements: InStatement[]): Promise<void> {
-  const { client, ready } = state();
-  await ready;
-  await client.batch(statements, "write");
+export async function transaction(statements: Statement[]): Promise<void> {
+  await (await db()).batch(statements);
 }
 
 export async function getKv(key: string): Promise<string | null> {

@@ -5,6 +5,7 @@ import { Alert, ArrowRight, Plus } from "@/components/icons";
 import { loadSampleContent, removeSampleContent } from "@/lib/actions/admin";
 import { requireAdmin } from "@/lib/auth";
 import { addDays, formatDateShort, formatTimeRange, todayInPostTz } from "@/lib/dates";
+import { isPreviewDatabase } from "@/lib/db";
 import { emailConfigured } from "@/lib/email";
 import { occurrencesBetween } from "@/lib/recurrence";
 import * as repo from "@/lib/repo";
@@ -36,6 +37,11 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
 
   // Things worth doing before (or soon after) the site goes live.
   const todo: { text: string; href: string }[] = [];
+  if (isPreviewDatabase())
+    todo.push({
+      text: "This is a preview without a permanent database, so nothing entered here is kept and you may be signed out at any time. Add the database settings to make the site live (see “Putting it online” in the README).",
+      href: "/admin/settings",
+    });
   const meetingDraft = events.find((event) => event.slug === MEETING_SLUG && !event.published);
   if (meetingDraft)
     todo.push({

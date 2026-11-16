@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { Client, InStatement } from "@libsql/client";
+import type { Statement } from "./db";
 import { addDays, addMonths, nowIso, todayInPostTz, weekdayOf, type Ymd } from "./dates";
 import { lastWeekdayOfMonth, nthWeekdayOfMonth } from "./recurrence";
 
@@ -12,7 +12,7 @@ import { lastWeekdayOfMonth, nthWeekdayOfMonth } from "./recurrence";
  * only — no phone numbers or email addresses — and should be confirmed in
  * Admin → Officers before launch.
  */
-export async function seedStarterContent(client: Client): Promise<void> {
+export async function seedStarterContent(batch: (statements: Statement[]) => Promise<void>): Promise<void> {
   const now = nowIso();
   const hall = "Post 186 Hall, 101 French Street, Hammonton";
 
@@ -22,7 +22,7 @@ export async function seedStarterContent(client: Client): Promise<void> {
     ["Diane Eby", "Chaplain", 30],
   ];
 
-  const statements: InStatement[] = [
+  const statements: Statement[] = [
     // Fails if starter content was already added, which cancels the whole batch.
     { sql: "INSERT INTO kv (key, value) VALUES ('seeded', ?)", args: [now] },
     ...officers.map(([name, title, sort]) => ({
@@ -81,7 +81,7 @@ export async function seedStarterContent(client: Client): Promise<void> {
   });
 
   try {
-    await client.batch(statements, "write");
+    await batch(statements);
   } catch (error) {
     // "seeded" already exists (or another worker won the race): nothing to do.
     if (!/UNIQUE|constraint/i.test(String((error as Error)?.message ?? error))) throw error;
@@ -119,7 +119,7 @@ function nextAnnual(today: Ymd, month: number, day: number): Ymd {
  * "Remove sample content" in Admin → Settings deletes exactly these rows and
  * nothing an officer has entered.
  */
-export function demoContentStatements(): InStatement[] {
+export function demoContentStatements(): Statement[] {
   const now = nowIso();
   const today = todayInPostTz();
   const hall = "Post 186 Hall, 101 French Street, Hammonton";
@@ -216,7 +216,7 @@ export function demoContentStatements(): InStatement[] {
     },
   ];
 
-  const eventStatements: InStatement[] = events.map((e) => ({
+  const eventStatements: Statement[] = events.map((e) => ({
     sql: `INSERT OR IGNORE INTO events (slug, title, summary, description, category, location,
             start_date, start_time, end_time, recurrence, audience, uses_hall, featured, is_demo,
             created_at, updated_at)
@@ -248,7 +248,7 @@ export function demoContentStatements(): InStatement[] {
     ["P186-DEMO4", "pending", addDays(saturday, 28), "17:00", "22:00", "Graduation party", 60, "Sample Renter Four"],
   ];
 
-  const bookingStatements: InStatement[] = bookings.map(
+  const bookingStatements: Statement[] = bookings.map(
     ([ref, status, date, start, end, type, guests, name]) => ({
       sql: `INSERT OR IGNORE INTO bookings (reference, status, event_date, start_time, end_time,
               event_type, guest_count, contact_name, contact_email, contact_phone, notes, source,
