@@ -1,0 +1,18 @@
+# Netlify settings for the American Legion Post 186 website.
+#
+# This file is used when a Netlify site has its Base directory set to "post186"
+# (Site configuration → Build & deploy → Build settings). The netlify.toml at
+# the top of the repository belongs to a different site and does not apply.
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  # The site uses Node's built-in SQLite when no hosted database is set, which needs Node 22.
+  AWS_LAMBDA_JS_RUNTIME = "nodejs22.x"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
